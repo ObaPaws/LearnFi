@@ -1,0 +1,3 @@
+[workspace]
+members = ["programs/learnfi_credentials"]
+resolver = "2"

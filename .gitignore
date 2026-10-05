@@ -1,0 +1,15 @@
+node_modules/
+.pnpm-store/
+.next/
+target/
+anchor-debug.log
+test-ledger/
+.anchor/
+out/
+dist/
+coverage/
+.env*
+!.env.example
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
