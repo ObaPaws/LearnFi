@@ -31,15 +31,11 @@ export async function startTutorial(formData: FormData) {
 
 export async function completeTutorial(formData: FormData) {
   const { admin, learnerId, tutorial } = await context(formData);
-  if (!tutorial.content_url || !/^https:\/\//i.test(tutorial.content_url)) redirect(`/tutorials/${tutorial.id}?status=content-unavailable`);
-  const { data: progress } = await admin.from("tutorial_progress").select("id").eq("learner_id", learnerId).eq("tutorial_id", tutorial.id).maybeSingle();
+  const { data: progress } = await admin.from("tutorial_progress").select("id,video_percent_watched,assessment_passed").eq("learner_id", learnerId).eq("tutorial_id", tutorial.id).maybeSingle();
   if (!progress) redirect(`/tutorials/${tutorial.id}?status=not-started`);
-  const now = new Date().toISOString();
-  const [{ error: progressError }, { error: activityError }, { error: engagementError }] = await Promise.all([
-    admin.from("tutorial_progress").update({ progress_percent: 100, completed_at: now, last_activity_at: now }).eq("id", progress.id),
-    admin.from("learning_activities").upsert({ learner_id: learnerId, tutorial_id: tutorial.id, event_type: "tutorial_completed", idempotency_key: `complete:${learnerId}:${tutorial.id}`, occurred_at: now }, { onConflict: "learner_id,idempotency_key", ignoreDuplicates: true }),
-    admin.from("tutor_engagement").upsert({ tutor_id: tutorial.tutor_id, learner_id: learnerId, tutorial_id: tutorial.id, event_type: "tutorial_complete", idempotency_key: `complete:${learnerId}:${tutorial.id}` }, { onConflict: "idempotency_key", ignoreDuplicates: true }),
-  ]);
-  if (progressError || activityError || engagementError) redirect(`/tutorials/${tutorial.id}?status=error`);
-  redirect(`/tutorials/${tutorial.id}?status=completed`);
+  if (Number(progress.video_percent_watched) < 90 || !progress.assessment_passed) redirect(`/tutorials/${tutorial.id}?status=completion-requirements`);
+  const { data: attempt } = await admin.from("quiz_attempts").select("id,quiz_id,quizzes!inner(tutorial_id)").eq("learner_id", learnerId).eq("passed", true).eq("quizzes.tutorial_id", tutorial.id).order("completed_at", { ascending: false }).limit(1).maybeSingle();
+  if (!attempt) redirect(`/tutorials/${tutorial.id}?status=completion-requirements`);
+  const { data: completed, error } = await admin.rpc("finalize_tutorial_progress", { p_learner_id: learnerId, p_tutorial_id: tutorial.id, p_quiz_id: attempt.quiz_id, p_attempt_id: attempt.id });
+  redirect(error ? `/tutorials/${tutorial.id}?status=error` : completed ? `/tutorials/${tutorial.id}?status=completed` : `/tutorials/${tutorial.id}?status=completion-requirements`);
 }

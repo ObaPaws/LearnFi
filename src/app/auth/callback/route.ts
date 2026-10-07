@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { usernameFromXHandle } from "@/lib/identity";
+import { isSafePostAuthPath, usernameFromXHandle } from "@/lib/identity";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -45,5 +45,7 @@ export async function GET(request: Request) {
   const { error: learnerError } = await admin.from("learner_profiles").upsert({ user_id: existing.id }, { onConflict: "user_id", ignoreDuplicates: true });
   if (roleError || learnerError) return NextResponse.redirect(new URL("/auth/error?reason=profile", url));
 
-  return NextResponse.redirect(new URL("/dashboard", url));
+  const next = url.searchParams.get("next");
+  const destination = next && isSafePostAuthPath(next) ? next : "/dashboard";
+  return NextResponse.redirect(new URL(destination, url.origin));
 }
