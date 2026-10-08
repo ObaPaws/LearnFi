@@ -1,5 +1,1 @@
-import { redirect } from "next/navigation";
-
-export default function TutorDashboardRoute() {
-  redirect("/tutor");
-}
+export { default } from "../../tutor/page";

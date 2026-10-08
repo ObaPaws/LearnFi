@@ -50,7 +50,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const currentStreak = streak?.last_qualifying_activity && streak.last_qualifying_activity >= yesterdayUtc && streak.last_qualifying_activity <= todayUtc ? streak.current_streak : 0;
 
   return <main className="discover-shell dashboard-shell">
-    <header className="topbar"><Link className="wordmark" href="/" aria-label="LearnFi home"><span className="brand-mark">L<span>f</span></span>learnfi</Link><div className="dashboard-nav"><Link href="/academy">Academy <ArrowRight size={15}/></Link><Link href="/tutor">Teach on LearnFi</Link><Link href="/profile" className="user-pill"><UserRound size={13}/>{profile.display_name || `@${profile.username}`}</Link></div></header>
+    <header className="topbar"><Link className="wordmark" href="/" aria-label="LearnFi home"><span className="brand-mark">L<span>f</span></span>learnfi</Link><div className="dashboard-nav"><Link href="/academy">Academy <ArrowRight size={15}/></Link><Link href="/dashboard/tutor">Tutor workspace</Link><Link href="/profile" className="user-pill"><UserRound size={13}/>{profile.display_name || `@${profile.username}`}</Link></div></header>
     <section className="learning-desk">
       <div className="desk-heading"><div><div className="eyebrow muted-eyebrow">YOUR LEARNING DESK</div><h1>Welcome back, <span className="serif-accent">{profile.display_name.split(" ")[0]}.</span></h1><p>Your learning, your pace. Progress is earned one meaningful step at a time.</p></div><Link className="button button-primary" href="/tutors">Find a tutor <ArrowRight size={16}/></Link></div>
       <div className="desk-grid">

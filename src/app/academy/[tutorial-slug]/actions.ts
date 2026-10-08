@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isLearnerWatchableTutorial } from "@/lib/tutorial-access";
 
 const idSchema = z.string().uuid();
 
@@ -21,8 +22,8 @@ export async function startAcademyTutorial(formData: FormData) {
   const id = idSchema.safeParse(formData.get("tutorialId"));
   if (!id.success) redirect("/academy");
   const { admin, learnerId } = await learnerContext();
-  const { data: tutorial } = await admin.from("tutorials").select("id,slug,tutor_id,status,video_processing_status").eq("id", id.data).maybeSingle();
-  if (!tutorial || tutorial.status !== "published" || tutorial.video_processing_status !== "ready") redirect("/academy");
+  const { data: tutorial } = await admin.from("tutorials").select("id,slug,tutor_id,status,is_published,video_processing_status,price_type,publication_number").eq("id", id.data).maybeSingle();
+  if (!tutorial || !isLearnerWatchableTutorial({ status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) redirect("/academy");
   const now = new Date().toISOString();
   const [{ error: progressError }, { error: engagementError }] = await Promise.all([
     admin.from("tutorial_progress").upsert({ learner_id: learnerId, tutorial_id: tutorial.id, last_activity_at: now }, { onConflict: "learner_id,tutorial_id", ignoreDuplicates: true }),
@@ -36,6 +37,10 @@ export async function submitTutorialQuiz(formData: FormData) {
   const parsed = z.object({ tutorialId: idSchema, quizId: idSchema, slug: z.string().min(1).max(180) }).safeParse({ tutorialId: formData.get("tutorialId"), quizId: formData.get("quizId"), slug: formData.get("slug") });
   if (!parsed.success) redirect("/academy");
   const { admin, learnerId } = await learnerContext();
+  const { data: tutorial } = await admin.from("tutorials").select("status,is_published,video_processing_status,price_type,publication_number").eq("id", parsed.data.tutorialId).eq("slug", parsed.data.slug).maybeSingle();
+  if (!tutorial || !isLearnerWatchableTutorial({ status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) redirect(`/academy/${parsed.data.slug}?status=quiz-unavailable`);
+  const { data: watchedProgress } = await admin.from("tutorial_progress").select("video_percent_watched").eq("learner_id", learnerId).eq("tutorial_id", parsed.data.tutorialId).maybeSingle();
+  if (!watchedProgress || Number(watchedProgress.video_percent_watched) < 90) redirect(`/academy/${parsed.data.slug}?status=assessment-watch-required`);
   const { data: quiz } = await admin.from("quizzes").select("id,title,passing_score,tutorial_id").eq("id", parsed.data.quizId).eq("tutorial_id", parsed.data.tutorialId).maybeSingle();
   const { data: questions } = await admin.from("tutorial_quiz_questions").select("id,tutorial_quiz_options(id)").eq("quiz_id", parsed.data.quizId).order("position");
   if (!quiz || !questions?.length) redirect(`/academy/${parsed.data.slug}?status=quiz-unavailable`);
