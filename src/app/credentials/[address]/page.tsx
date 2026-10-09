@@ -1,0 +1,15 @@
+import Link from "next/link";
+import { ArrowLeft, BadgeCheck, ExternalLink } from "lucide-react";
+import { verifyCredential } from "@/lib/credentials/solana";
+
+export const dynamic = "force-dynamic";
+
+export default async function CredentialVerificationPage({ params }: { params: Promise<{ address: string }> }) {
+  const { address } = await params;
+  let credential: Awaited<ReturnType<typeof verifyCredential>> | null = null;
+  let errorMessage = "";
+  try { credential = await verifyCredential(address); } catch (error) { errorMessage = error instanceof Error ? error.message : "Could not verify this credential."; }
+  const explorer = `https://explorer.solana.com/address/${encodeURIComponent(address)}?cluster=devnet`;
+  const txExplorer = credential?.issuanceSignature ? `https://explorer.solana.com/tx/${credential.issuanceSignature}?cluster=devnet` : null;
+  return <main className="discover-shell"><header className="topbar"><Link className="wordmark" href="/"><span className="brand-mark">L<span>f</span></span>learnfi</Link><Link className="button button-quiet" href="/profile"><ArrowLeft size={15}/> Profile</Link></header><section className="profile-content"><div className="eyebrow muted-eyebrow">PUBLIC ONCHAIN VERIFICATION · DEVNET</div>{credential ? <><h1>{credential.revoked ? "Credential revoked" : "Credential verified"}</h1><p>{credential.revoked ? "This credential remains on chain for its history but no longer passes verification." : "This credential was verified directly against its Solana program-owned account."}</p><div className="profile-facts"><div><span>STATUS</span><strong>{credential.revoked ? "Revoked" : "Active"}</strong></div><div><span>CREDENTIAL TYPE</span><strong>{credential.type === "learner" ? "Learner" : "Tutor"}</strong></div><div><span>ACHIEVEMENT</span><strong>{credential.type === "learner" ? "DeFi Fundamentals" : "LearnFi Free Tutor"}</strong></div><div><span>RECIPIENT WALLET</span><strong>{credential.recipient.toBase58()}</strong></div><div><span>ISSUER</span><strong>{credential.issuer.toBase58()}</strong></div><div><span>ISSUED</span><strong>{new Date(credential.issuedAt * 1000).toLocaleString()}</strong></div><div><span>ONCHAIN ACCOUNT (PDA)</span><strong>{credential.address}</strong></div><div><span>ISSUANCE TRANSACTION</span><strong>{credential.issuanceSignature ?? "Transaction history unavailable"}</strong></div></div><div className="profile-facts"><span className="credential-chip"><BadgeCheck size={14}/> Program owner, authority, recipient, achievement, and PDA validated</span><a className="button button-quiet" href={explorer} target="_blank" rel="noreferrer">Open account explorer <ExternalLink size={14}/></a>{txExplorer && <a className="button button-quiet" href={txExplorer} target="_blank" rel="noreferrer">Open issuance transaction <ExternalLink size={14}/></a>}</div></> : <><h1>Credential not verified</h1><p>{errorMessage || "The requested address did not resolve to a LearnFi credential."}</p></>}</section></main>;
+}

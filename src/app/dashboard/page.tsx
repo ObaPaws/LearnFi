@@ -4,6 +4,7 @@ import { ArrowRight, BadgeCheck, BookOpen, Flame, Sparkles, UserRound } from "lu
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { saveLearnerPreferences } from "./actions";
+import { isCredentialActiveOnchain } from "@/lib/credentials/solana";
 
 const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
 
@@ -14,7 +15,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (!user) redirect("/auth/sign-in");
 
   const admin = createSupabaseAdminClient();
-  const { data: profile } = await admin.from("users").select("id,username,display_name,x_avatar_url").eq("auth_user_id", user.id).maybeSingle();
+  const { data: profile } = await admin.from("users").select("id,username,display_name,x_avatar_url,wallet_address").eq("auth_user_id", user.id).maybeSingle();
   if (!profile) redirect("/auth/sign-in");
   const [{ data: streak }, { data: activeDays }, { data: credential }, { data: progress }, { data: completedProgress }, { data: watchedProgress }, { data: quizAttempts }, { data: xpRewards }, { data: achievements }, { data: teachingStyles }, { data: savedPreferences }, { data: activity }] = await Promise.all([
     admin.from("streaks").select("current_streak,longest_streak,last_qualifying_activity").eq("learner_id", profile.id).maybeSingle(),
@@ -30,6 +31,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     admin.from("learner_teaching_preferences").select("style_id,weight").eq("learner_id", profile.id),
     admin.from("learning_activities").select("event_type,occurred_at,tutorials(title)").eq("learner_id", profile.id).order("occurred_at", { ascending: false }).limit(6),
   ]);
+  const credentialVerified = await isCredentialActiveOnchain(credential?.pda_address ?? null, profile.wallet_address);
   const activityDates = new Set((activeDays ?? []).map((day: { activity_date: string }) => day.activity_date));
   const week = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
@@ -57,7 +59,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <section className="desk-main-column">
           <article className="desk-hero"><div className="desk-hero-orbit"/><div className="desk-hero-copy"><span className="desk-kicker"><Sparkles size={14}/> A LEARNING NETWORK FOR BUILDERS</span><h2>{tutorial ? "Keep your learning in motion." : "Find the person who makes it click."}</h2><p>{tutorial ? "Your next step is ready whenever you are." : "Choose a tutor whose way of teaching fits the way you think."}</p><Link className="desk-hero-link" href={tutorial?.slug ? `/academy/${tutorial.slug}` : "/tutors"}>{tutorial?.id ? "Continue learning" : "Explore tutors"}<ArrowRight size={16}/></Link></div><div className="desk-hero-mark"><BookOpen size={25}/></div></article>
           {tutorial ? <Link className="resume-tile" href={tutorial.slug ? `/academy/${tutorial.slug}` : "/academy"}><span className="resume-icon"><BookOpen size={18}/></span><span className="resume-copy"><small>PICK UP WHERE YOU LEFT OFF</small><strong>{tutorial.title}</strong><span className="resume-track"><i style={{ width: `${progress?.progress_percent ?? 0}%` }}/></span></span><b>{progress?.progress_percent ?? 0}%</b><ArrowRight size={16}/></Link> : <div className="resume-tile resume-empty"><span className="resume-icon"><BookOpen size={18}/></span><span className="resume-copy"><small>YOUR LEARNING WILL LIVE HERE</small><strong>No tutorials in progress yet</strong><span>Start one when you find the right guide.</span></span><Link href="/tutors" aria-label="Discover tutors"><ArrowRight size={17}/></Link></div>}
-          <div className="desk-stat-grid"><article className="desk-stat"><span className="desk-stat-icon"><Flame size={17}/></span><small>LEARNING STREAK</small><strong>{currentStreak}<em> days</em></strong><p>Longest: {streak?.longest_streak ?? 0} days</p></article><article className="desk-stat"><span className="desk-stat-icon credential-icon"><BadgeCheck size={17}/></span><small>LEARNER CREDENTIAL</small><strong className="credential-status">{credential?.status === "active" ? "Verified" : credential?.status === "pending" ? "In progress" : "Not issued"}</strong><p>{credential?.pda_address ? "On-chain identity linked" : "Your identity stays yours"}</p></article></div>
+          <div className="desk-stat-grid"><article className="desk-stat"><span className="desk-stat-icon"><Flame size={17}/></span><small>LEARNING STREAK</small><strong>{currentStreak}<em> days</em></strong><p>Longest: {streak?.longest_streak ?? 0} days</p></article><article className="desk-stat"><span className="desk-stat-icon credential-icon"><BadgeCheck size={17}/></span><small>LEARNER CREDENTIAL</small><strong className="credential-status">{credentialVerified ? "Verified" : credential?.status === "pending" ? "In progress" : "Not issued"}</strong><p>{credentialVerified ? "Verified on Solana Devnet" : "Your identity stays yours"}</p></article></div>
         </section>
         <aside className="learner-panel"><div className="learner-panel-top"><span>YOUR PROFILE</span><Link href="/profile">Edit <ArrowRight size={13}/></Link></div><div className="learner-avatar">{profile.x_avatar_url ? <img src={profile.x_avatar_url} alt=""/> : <UserRound size={38}/>}</div><h2>{profile.display_name}</h2><p>@{profile.username}</p><div className="learner-calendar"><div className="calendar-title"><strong>This week</strong><span>LEARNING ACTIVITY</span></div><div className="calendar-days">{week.map((date, index) => { const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; const active = activityDates.has(dateKey); return <div className={active ? "calendar-day active" : "calendar-day"} key={dateKey}><span>{dayLabels[index]}</span><b>{date.getDate()}</b><i aria-label={active ? "Learning activity recorded" : undefined}/></div>; })}</div></div><div className="learner-panel-foot"><span className="live-dot"/> Activity reflects completed learning events</div></aside>
       </div>

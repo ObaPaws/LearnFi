@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, BadgeCheck, BookOpen, Clock3 } from "lucide-reac
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLearnerWatchableTutorial } from "@/lib/tutorial-access";
+import { isCredentialActiveOnchain } from "@/lib/credentials/solana";
 import { TutorialPlayer } from "./TutorialPlayer";
 import { likeTutorialComment, postTutorialComment, reportTutorialComment, respondToTutorialComment, startAcademyTutorial, submitTutorialQuiz, submitTutorialReview } from "./actions";
 
@@ -31,12 +32,12 @@ export default async function AcademyTutorialPage({ params, searchParams }: { pa
     if (!data) notFound();
     const [{ data: category }, { data: user }, { data: profile }, { data: styles }, { data: reviews }, { data: otherLessons }, { data: credential }] = await Promise.all([
       data.category_id ? db.from("tutorial_categories").select("id,name").eq("id", data.category_id).maybeSingle() : Promise.resolve({ data: null }),
-      db.from("users").select("id,username,display_name,x_username,x_avatar_url").eq("id", data.tutor_id).single(),
+      db.from("users").select("id,username,display_name,x_username,x_avatar_url,wallet_address").eq("id", data.tutor_id).single(),
       db.from("tutor_profiles").select("headline,bio,technical_background,website_url,x_profile_url,areas_of_expertise,is_published").eq("user_id", data.tutor_id).maybeSingle(),
       db.from("tutor_teaching_styles").select("teaching_styles(id,name)").eq("tutor_id", data.tutor_id),
       db.from("reviews").select("educational_score,clarity_score,effectiveness_score,accuracy_score,usefulness_score,teaching_feedback").eq("tutorial_id", data.id).not("eligible_at", "is", null).order("created_at", { ascending: false }),
       data.category_id ? db.from("tutorials").select("id,title,slug,difficulty,price_type,duration_seconds").eq("category_id", data.category_id).eq("status", "published").eq("video_processing_status", "ready").neq("id", data.id).limit(3) : Promise.resolve({ data: [] }),
-      db.from("credentials").select("pda_address").eq("user_id", data.tutor_id).eq("type", "tutor").eq("status", "active").maybeSingle(),
+      db.from("credentials").select("pda_address").eq("user_id", data.tutor_id).eq("type", "tutor").maybeSingle(),
     ]);
     if (!user || !profile?.is_published) notFound();
     const auth = await createSupabaseServerClient();
@@ -67,7 +68,7 @@ export default async function AcademyTutorialPage({ params, searchParams }: { pa
     tutor = { ...user, ...profile, styles: (styles ?? []).map((item: any) => item.teaching_styles).filter(Boolean) };
     tutorial = { ...data, category, reviews: reviews ?? [] };
     related = otherLessons ?? [];
-    isCredentialed = Boolean(credential?.pda_address);
+    isCredentialed = await isCredentialActiveOnchain(credential?.pda_address ?? null, user.wallet_address);
   } catch {
     notFound();
   }
