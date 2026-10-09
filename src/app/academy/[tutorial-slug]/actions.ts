@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLearnerWatchableTutorial } from "@/lib/tutorial-access";
@@ -13,7 +14,7 @@ async function learnerContext() {
   const { data: { user } } = await auth.auth.getUser();
   if (!user) redirect("/auth/sign-in");
   const admin = createSupabaseAdminClient();
-  const { data: learner } = await admin.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+  const { data: learner } = await profileForAuthUser(admin, user.id, "id");
   if (!learner) redirect("/auth/sign-in");
   return { admin, learnerId: learner.id };
 }

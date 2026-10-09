@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, BadgeCheck, BookOpen, Flame, Sparkles, UserRound } from "lucide-react";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { saveLearnerPreferences } from "./actions";
@@ -15,7 +16,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (!user) redirect("/auth/sign-in");
 
   const admin = createSupabaseAdminClient();
-  const { data: profile } = await admin.from("users").select("id,username,display_name,x_avatar_url,wallet_address").eq("auth_user_id", user.id).maybeSingle();
+  const { data: profile } = await profileForAuthUser(admin, user.id, "id,username,display_name,x_avatar_url,wallet_address");
   if (!profile) redirect("/auth/sign-in");
   const [{ data: streak }, { data: activeDays }, { data: credential }, { data: progress }, { data: completedProgress }, { data: watchedProgress }, { data: quizAttempts }, { data: xpRewards }, { data: achievements }, { data: teachingStyles }, { data: savedPreferences }, { data: activity }] = await Promise.all([
     admin.from("streaks").select("current_streak,longest_streak,last_qualifying_activity").eq("learner_id", profile.id).maybeSingle(),

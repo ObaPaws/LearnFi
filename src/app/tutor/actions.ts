@@ -2,16 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isTutorIdentityComplete } from "@/lib/tutor-identity";
 
 async function signedInUser() {
   const auth = await createSupabaseServerClient();
   const { data: { user } } = await auth.auth.getUser();
   if (!user) redirect("/auth/sign-in");
   const admin = createSupabaseAdminClient();
-  const { data: account } = await admin.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+  const { data: account } = await profileForAuthUser(admin, user.id, "id,x_user_id,wallet_address,wallet_verified_at,verified_email,email_verified_at");
   if (!account) redirect("/auth/sign-in");
+  if (!isTutorIdentityComplete(account)) redirect("/profile?status=tutor-requirements");
   return { admin, userId: account.id };
 }
 

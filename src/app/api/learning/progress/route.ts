@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLearnerWatchableTutorial } from "@/lib/tutorial-access";
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid watch progress." }, { status: 400 });
   const admin = createSupabaseAdminClient();
-  const { data: learner } = await admin.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+  const { data: learner } = await profileForAuthUser(admin, user.id, "id");
   if (!learner) return NextResponse.json({ error: "Learner profile not found." }, { status: 403 });
   const { data: tutorial } = await admin.from("tutorials").select("status,is_published,video_processing_status,price_type,publication_number").eq("id", parsed.data.tutorialId).maybeSingle();
   if (!tutorial || !isLearnerWatchableTutorial({ status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) return NextResponse.json({ error: "This tutorial is not available to watch." }, { status: 403 });

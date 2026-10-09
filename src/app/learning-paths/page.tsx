@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, BadgeCheck, Route } from "lucide-react";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { completeLearningPath } from "./actions";
@@ -14,7 +15,7 @@ export default async function LearningPathsPage({ searchParams }: { searchParams
   let completedPathIds = new Set<string>();
   let completedTutorialIds = new Set<string>();
   if (user) {
-    const { data: account } = await db.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+    const { data: account } = await profileForAuthUser(db, user.id, "id");
     if (account) {
       const [{ data: completionRows }, { data: progressRows }] = await Promise.all([
         db.from("learning_path_progress").select("learning_path_id").eq("learner_id", account.id).not("completed_at", "is", null),

@@ -1709,9 +1709,11 @@ export type Database = {
           auth_user_id: string
           created_at: string
           display_name: string
+          email_verified_at: string | null
           id: string
           updated_at: string
           username: string
+          verified_email: string | null
           wallet_address: string | null
           wallet_verified_at: string | null
           x_avatar_url: string | null
@@ -1723,9 +1725,11 @@ export type Database = {
           auth_user_id: string
           created_at?: string
           display_name: string
+          email_verified_at?: string | null
           id?: string
           updated_at?: string
           username: string
+          verified_email?: string | null
           wallet_address?: string | null
           wallet_verified_at?: string | null
           x_avatar_url?: string | null
@@ -1737,9 +1741,11 @@ export type Database = {
           auth_user_id?: string
           created_at?: string
           display_name?: string
+          email_verified_at?: string | null
           id?: string
           updated_at?: string
           username?: string
+          verified_email?: string | null
           wallet_address?: string | null
           wallet_verified_at?: string | null
           x_avatar_url?: string | null
@@ -1748,6 +1754,32 @@ export type Database = {
           x_username?: string | null
         }
         Relationships: []
+      }
+      auth_profile_links: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          profile_id: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          profile_id: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_profile_links_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

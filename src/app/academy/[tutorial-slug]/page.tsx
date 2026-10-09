@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, BadgeCheck, BookOpen, Clock3 } from "lucide-react";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLearnerWatchableTutorial } from "@/lib/tutorial-access";
@@ -44,7 +45,7 @@ export default async function AcademyTutorialPage({ params, searchParams }: { pa
     const { data: { user: authUser } } = await auth.auth.getUser();
     isSignedIn = Boolean(authUser);
     if (authUser) {
-      const { data: account } = await db.from("users").select("id").eq("auth_user_id", authUser.id).maybeSingle();
+      const { data: account } = await profileForAuthUser(db, authUser.id, "id");
       isSignedIn = Boolean(account);
       viewerId = account?.id ?? "";
       isTutor = account?.id === data.tutor_id;
