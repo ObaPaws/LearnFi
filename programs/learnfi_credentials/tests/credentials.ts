@@ -103,5 +103,9 @@ describe("LearnFi PDA credentials", () => {
     const account = await program.account.credential.fetch(pda) as any;
     expect(account.revoked).to.equal(true);
     expect((await provider.connection.getAccountInfo(pda))?.owner.equals(program.programId)).to.equal(true);
+    try {
+      await program.methods.revokeCredential().accounts({ config, credential: pda, authority }).rpc();
+      expect.fail("already revoked credential was accepted");
+    } catch (error) { expect(String(error)).to.match(/AlreadyRevoked|custom program error/i); }
   });
 });

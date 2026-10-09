@@ -3,6 +3,7 @@ import test from "node:test";
 import nacl from "tweetnacl";
 import { Keypair } from "@solana/web3.js";
 import { isLearnerCredentialEligible, isTutorCredentialEligible } from "../src/lib/credentials/eligibility.ts";
+import { isCredentialActive } from "../src/lib/credentials/status.ts";
 import { verifyWalletChallenge, walletChallengeMessage } from "../src/lib/credentials/wallet-challenge.ts";
 
 test("learner eligibility is derived from completion, passed quiz, and watch threshold", () => {
@@ -18,6 +19,15 @@ test("tutor eligibility requires every configured threshold", () => {
   assert.equal(isTutorCredentialEligible({ ...eligible, freePublished: 1 }), false);
   assert.equal(isTutorCredentialEligible({ ...eligible, eligibleReviews: 4 }), false);
   assert.equal(isTutorCredentialEligible({ ...eligible, adjustedRating: 4.19 }), false);
+});
+
+test("application verification excludes revoked credentials and credentials for another wallet", () => {
+  const recipient = Keypair.generate().publicKey.toBase58();
+  const otherRecipient = Keypair.generate().publicKey.toBase58();
+  assert.equal(isCredentialActive({ recipient, revoked: false }, recipient), true);
+  assert.equal(isCredentialActive({ recipient, revoked: true }, recipient), false);
+  assert.equal(isCredentialActive({ recipient, revoked: false }, otherRecipient), false);
+  assert.equal(isCredentialActive({ recipient, revoked: false }, null), false);
 });
 
 test("wallet ownership challenge accepts only the connected wallet's exact signed challenge", () => {

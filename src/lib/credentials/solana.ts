@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { ACHIEVEMENTS } from "@/lib/credentials/achievements";
+import { isCredentialActive } from "@/lib/credentials/status";
 
 export const PROGRAM_ID_FALLBACK = "BZLiJ62bzRryYp9mRobz47uA66WDgtfTXhhgM25tJyx5";
 export const CONFIG_SEED = Buffer.from("learnfi_config");
@@ -122,6 +123,6 @@ export async function isCredentialActiveOnchain(address: string | null, expected
   if (!address || !expectedRecipient) return false;
   try {
     const credential = await verifyCredential(address);
-    return !credential.revoked && credential.recipient.toBase58() === expectedRecipient;
+    return isCredentialActive({ recipient: credential.recipient.toBase58(), revoked: credential.revoked }, expectedRecipient);
   } catch { return false; }
 }
