@@ -3,11 +3,13 @@ import { NextResponse } from "next/server";
 import { createWalletXLinkToken, walletAddressFromWeb3Identity } from "@/lib/auth-link";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 const linkCookieName = "learnfi_wallet_x_link";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  if (!isSupabaseConfigured()) return NextResponse.redirect(new URL("/auth/error?reason=config", url.origin));
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/auth/solana", url.origin));

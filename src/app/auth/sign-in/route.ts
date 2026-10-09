@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { isSafePostAuthPath } from "@/lib/identity";
 
 export async function GET(request: Request) {
+  if (!isSupabaseConfigured()) return NextResponse.redirect(new URL("/auth/error?reason=config", request.url));
   const supabase = await createSupabaseServerClient();
   const callbackUrl = new URL("/auth/callback", request.url);
   const next = new URL(request.url).searchParams.get("next");

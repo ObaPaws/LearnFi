@@ -2,7 +2,9 @@ import Link from "next/link";
 
 export default async function AuthErrorPage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
   const { reason } = await searchParams;
-  const message = reason === "provider"
+  const message = reason === "config"
+    ? "Sign-in isn’t set up in this environment: the Supabase URL and keys are missing. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then restart the app."
+    : reason === "provider"
     ? "X sign-in isn’t available right now. Check the configured OAuth connection and try again."
     : reason === "wallet"
       ? "Supabase could not confirm a Solana wallet identity. Sign in again with a supported wallet."
