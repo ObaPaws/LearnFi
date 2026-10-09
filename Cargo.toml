@@ -1,3 +1,6 @@
 [workspace]
 members = ["programs/learnfi_credentials"]
 resolver = "2"
+
+[profile.release]
+overflow-checks = true

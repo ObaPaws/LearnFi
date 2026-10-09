@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createMuxDirectUpload } from "@/lib/mux";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Choose a valid tutorial draft." }, { status: 400 });
   const admin = createSupabaseAdminClient();
-  const { data: account } = await admin.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+  const { data: account } = await profileForAuthUser(admin, user.id, "id");
   if (!account) return NextResponse.json({ error: "LearnFi profile not found." }, { status: 403 });
   const { data: tutorial } = await admin.from("tutorials").select("id,status,video_upload_id").eq("id", parsed.data.tutorialId).eq("tutor_id", account.id).maybeSingle();
   if (!tutorial) return NextResponse.json({ error: "You cannot upload to this tutorial." }, { status: 403 });

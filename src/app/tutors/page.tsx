@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Search, UsersRound } from "lucide-react";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { teachingCompatibility } from "@/lib/matching";
@@ -11,7 +12,7 @@ export default async function TutorsPage({ searchParams }: { searchParams: Promi
   const { data: { user } } = await auth.auth.getUser();
   let preferences: Array<{ style_id: string; weight: number }> = [];
   if (user) {
-    const { data: account } = await db.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+    const { data: account } = await profileForAuthUser(db, user.id, "id");
     if (account) {
       const { data } = await db.from("learner_teaching_preferences").select("style_id,weight").eq("learner_id", account.id);
       preferences = (data ?? []).map((entry) => ({ style_id: entry.style_id, weight: entry.weight }));

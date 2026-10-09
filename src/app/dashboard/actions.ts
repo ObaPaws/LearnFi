@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -13,7 +14,7 @@ export async function saveLearnerPreferences(formData: FormData) {
   const parsedIds = z.array(z.string().uuid()).max(12).safeParse(ids);
   if (!parsedIds.success) redirect("/dashboard?status=preferences-error");
   const admin = createSupabaseAdminClient();
-  const { data: account } = await admin.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+  const { data: account } = await profileForAuthUser(admin, user.id, "id");
   if (!account) redirect("/auth/sign-in");
   const { data: styles } = await admin.from("teaching_styles").select("id").in("id", parsedIds.data.length ? parsedIds.data : ["00000000-0000-0000-0000-000000000000"]);
   if ((styles ?? []).length !== parsedIds.data.length || new Set(parsedIds.data).size !== parsedIds.data.length) redirect("/dashboard?status=preferences-error");

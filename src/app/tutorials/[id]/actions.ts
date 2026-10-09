@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -14,7 +15,7 @@ async function context(formData: FormData) {
   const { data: { user } } = await auth.auth.getUser();
   if (!user) redirect("/auth/sign-in");
   const admin = createSupabaseAdminClient();
-  const { data: learner } = await admin.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+  const { data: learner } = await profileForAuthUser(admin, user.id, "id");
   if (!learner) redirect("/auth/sign-in");
   const { data: tutorial } = await admin.from("tutorials").select("id,tutor_id,content_url").eq("id", parsedId.data).eq("is_published", true).maybeSingle();
   if (!tutorial) redirect("/discover");

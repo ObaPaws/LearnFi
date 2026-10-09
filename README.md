@@ -9,7 +9,9 @@ LearnFi is a learning network for discovering tutors by what and how they teach.
 3. Apply `supabase/migrations/0001_foundation.sql`, then apply the timestamped migrations in `supabase/migrations/` in order.
 4. Run `npm install`, then `npm run dev`.
 
-Enable the X OAuth 2.0 provider in Supabase Auth and allow `http://localhost:3000/auth/callback` as an application redirect URL. Configure the X client ID and secret in Supabase Auth; the application does not read separate X OAuth environment variables. X identity provisioning uses the immutable provider ID; LearnFi usernames remain editable.
+Enable the X OAuth 2.0 and Web3 providers in Supabase Auth. Keep `http://localhost:3000/auth/sign-in` as the X entry point; Solana sign-in is offered separately at `/auth/solana`. Add `http://localhost:3000/auth/callback` and `http://localhost:3000/auth/email/confirm` to the allowed redirect URLs. Configure the X client ID and secret in Supabase Auth; the application does not read separate X OAuth environment variables. X identity provisioning uses the immutable provider ID; LearnFi usernames remain editable.
+
+Wallet sign-in creates a Supabase Web3 identity. LearnFi does not associate it with a profile until the same browser completes X OAuth; a short-lived signed link intent carries the wallet identity through that proof. Existing X learners can connect and verify a wallet later from their profile. Tutor registration and all tutor workspace actions require an X-backed LearnFi profile, a verified Solana wallet, and an email address confirmed by Supabase. Learners may use X without a wallet until an on-chain feature requires one.
 
 Supabase values are required for application data and authentication. Mux values are required to create direct video uploads and verify webhooks. Point `NEXT_PUBLIC_APP_URL` at the deployed site in production. Credential transactions are restricted to Devnet until a separately reviewed mainnet integration is added.
 

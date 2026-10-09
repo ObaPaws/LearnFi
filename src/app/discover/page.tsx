@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Compass, Search } from "lucide-react";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { teachingCompatibility } from "@/lib/matching";
@@ -18,7 +19,7 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
     const auth = await createSupabaseServerClient();
     const { data: { user } } = await auth.auth.getUser();
     if (user) {
-      const { data: learner } = await admin.from("users").select("id").eq("auth_user_id", user.id).maybeSingle();
+      const { data: learner } = await profileForAuthUser(admin, user.id, "id");
       if (learner) {
         const { data: preferences } = await admin.from("learner_teaching_preferences").select("style_id").eq("learner_id", learner.id);
         preferredStyleIds = (preferences ?? []).map((item: { style_id: string }) => item.style_id);

@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, Check, ExternalLink, Plus, Save } from "lucide-react";
+import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createTutorial, publishTutorProfile, publishTutorial, saveTutorProfile, scheduleLiveClass } from "./actions";
 import { MuxUpload } from "./MuxUpload";
 import { QuizEditor } from "./QuizEditor";
 import { isCredentialActiveOnchain } from "@/lib/credentials/solana";
+import { isTutorIdentityComplete } from "@/lib/tutor-identity";
 
 const notices: Record<string, string> = { saved: "Tutor details saved.", published: "Your tutor profile is now visible in discovery.", incomplete: "Add a headline, short bio, at least one teaching style, and one subject before publishing.", "tutorial-created": "Tutorial added as a draft.", "tutorial-published": "Tutorial published.", "video-required": "Upload a video and wait for processing before publishing.", "class-invalid": "Check the class details and choose a future date.", "class-scheduled": "Live class scheduled.", "quiz-invalid": "Check the assessment questions and answer options.", "quiz-saved": "Assessment saved.", "quiz-frozen": "This assessment has attempts, so its question history is locked.", invalid: "Please check the fields and try again.", setup: "Save your tutor profile details first.", error: "We couldn’t save that change. Please try again." };
 
@@ -15,8 +17,9 @@ export default async function TutorDashboard({ searchParams }: { searchParams: P
   const { data: { user } } = await auth.auth.getUser();
   if (!user) redirect("/auth/sign-in");
   const admin = createSupabaseAdminClient();
-  const { data: account } = await admin.from("users").select("id,username,display_name,wallet_address").eq("auth_user_id", user.id).maybeSingle();
+  const { data: account } = await profileForAuthUser(admin, user.id, "id,username,display_name,wallet_address,x_user_id,wallet_verified_at,verified_email,email_verified_at");
   if (!account) redirect("/auth/sign-in");
+  if (!isTutorIdentityComplete(account)) redirect("/profile?status=tutor-requirements");
   const [{ data: profile }, { data: styles }, { data: subjects }, { data: categories }, { data: selectedStyles }, { data: selectedSubjects }, { data: tutorials }, { data: publicationHistory }, { data: reputation }, { data: upcomingClasses }, { data: recentComments }, { data: credential }, { status }] = await Promise.all([
     admin.from("tutor_profiles").select("headline,bio,technical_background,is_published,website_url,x_profile_url,areas_of_expertise").eq("user_id", account.id).maybeSingle(),
     admin.from("teaching_styles").select("id,name,description").order("name"),
