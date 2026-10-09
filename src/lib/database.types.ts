@@ -19,6 +19,8 @@ export type Database = {
           created_at: string
           id: string
           issued_at: string | null
+          achievement_id: string | null
+          metadata_hash: string | null
           pda_address: string | null
           revoked_at: string | null
           status: Database["public"]["Enums"]["credential_status"]
@@ -31,6 +33,8 @@ export type Database = {
           created_at?: string
           id?: string
           issued_at?: string | null
+          achievement_id?: string | null
+          metadata_hash?: string | null
           pda_address?: string | null
           revoked_at?: string | null
           status?: Database["public"]["Enums"]["credential_status"]
@@ -43,6 +47,8 @@ export type Database = {
           created_at?: string
           id?: string
           issued_at?: string | null
+          achievement_id?: string | null
+          metadata_hash?: string | null
           pda_address?: string | null
           revoked_at?: string | null
           status?: Database["public"]["Enums"]["credential_status"]
@@ -1706,6 +1712,8 @@ export type Database = {
           id: string
           updated_at: string
           username: string
+          wallet_address: string | null
+          wallet_verified_at: string | null
           x_avatar_url: string | null
           x_display_name: string | null
           x_user_id: string
@@ -1718,6 +1726,8 @@ export type Database = {
           id?: string
           updated_at?: string
           username: string
+          wallet_address?: string | null
+          wallet_verified_at?: string | null
           x_avatar_url?: string | null
           x_display_name?: string | null
           x_user_id: string
@@ -1730,6 +1740,8 @@ export type Database = {
           id?: string
           updated_at?: string
           username?: string
+          wallet_address?: string | null
+          wallet_verified_at?: string | null
           x_avatar_url?: string | null
           x_display_name?: string | null
           x_user_id?: string

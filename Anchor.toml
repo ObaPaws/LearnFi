@@ -14,3 +14,6 @@ learnfi_credentials = "BZLiJ62bzRryYp9mRobz47uA66WDgtfTXhhgM25tJyx5"
 [provider]
 cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npx ts-mocha -p ./tsconfig.anchor.json -t 1000000 programs/learnfi_credentials/tests/**/*.ts"
