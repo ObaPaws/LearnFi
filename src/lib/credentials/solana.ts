@@ -4,7 +4,7 @@ import { Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { ACHIEVEMENTS } from "@/lib/credentials/achievements";
 import { isCredentialActive } from "@/lib/credentials/status";
 
-export const PROGRAM_ID_FALLBACK = "BZLiJ62bzRryYp9mRobz47uA66WDgtfTXhhgM25tJyx5";
+export const PROGRAM_ID_FALLBACK = "BsSfvf3B5VLBbCsAsXePkCkyKFzjpZ6P7xStU7NSGidM";
 export const CONFIG_SEED = Buffer.from("learnfi_config");
 export const CREDENTIAL_SEED = Buffer.from("learnfi_credential");
 export { ACHIEVEMENTS } from "@/lib/credentials/achievements";
@@ -15,7 +15,7 @@ export function programId() {
   return new PublicKey(process.env.SOLANA_PROGRAM_ID || PROGRAM_ID_FALLBACK);
 }
 
-export const DEVNET_GENESIS_HASH = "GH7ome3EiwEr7tu9JuTh2dpYWBJK3z69Xm1ZE3MEE6JC";
+export const DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
 
 export function connectionEndpoint() {
   return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";

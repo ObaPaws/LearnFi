@@ -52,7 +52,7 @@ anchor build
 anchor deploy --provider.cluster devnet --provider.wallet ~/.config/solana/learnfi-deploy-devnet.json
 ```
 
-Set `SOLANA_PROGRAM_ID` to the address produced by `anchor keys sync`. The program keypair under `target/deploy/` is needed for deployment/upgrades and must be backed up securely; it is not the credential issuer secret. Set the server-only `SOLANA_ISSUER_SECRET_KEY` to the dedicated issuer's JSON byte array and `SOLANA_ISSUER_PUBLIC_KEY` to its public address. Configure `SOLANA_CLUSTER=devnet` and `NEXT_PUBLIC_SOLANA_RPC_URL` to the chosen Devnet RPC endpoint. `SOLANA_MAINNET_RPC_URL` is reserved and unused.
+Set `SOLANA_PROGRAM_ID` to the address produced by `anchor keys sync` (currently `BsSfvf3B5VLBbCsAsXePkCkyKFzjpZ6P7xStU7NSGidM`). The program keypair under `target/deploy/` is needed for deployment/upgrades and must be backed up securely; it is not the credential issuer secret. Set the server-only `SOLANA_ISSUER_SECRET_KEY` to the dedicated issuer's JSON byte array and `SOLANA_ISSUER_PUBLIC_KEY` to its public address. Configure `SOLANA_CLUSTER=devnet` and `NEXT_PUBLIC_SOLANA_RPC_URL` to the chosen Devnet RPC endpoint. `SOLANA_MAINNET_RPC_URL` is reserved and unused.
 
 Initialize the issuer config PDA exactly once. Use the application server's issuer keypair for the initial authorized issuer (or update the on-chain authority through the authorized rotation instruction):
 
@@ -73,7 +73,7 @@ On the profile page, connect and verify the eligible user's wallet, then request
 3. Run `anchor build`, then `anchor deploy --provider.cluster devnet`.
 4. Initialize the config PDA once from the intended issuer authority, then configure the server-side credential issuer.
 
-The checked-in program ID is a development placeholder until `anchor keys sync` is run against a generated program keypair. Do not mark database rows active without validating the PDA on Devnet. Never deploy this stage to Mainnet.
+The program ID is tied to the generated keypair under `target/deploy/`; preserve and securely back up that keypair for future upgrades. Do not mark database rows active without validating the PDA on Devnet. Never deploy this stage to Mainnet.
 
 ## Academy and tutor features
 

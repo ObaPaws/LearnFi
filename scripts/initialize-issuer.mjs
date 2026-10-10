@@ -8,10 +8,10 @@ const bytes = JSON.parse(encoded);
 if (!Array.isArray(bytes) || bytes.length !== 64) throw new Error("SOLANA_ISSUER_SECRET_KEY must be a JSON array of 64 bytes.");
 const issuer = Keypair.fromSecretKey(Uint8Array.from(bytes));
 if (process.env.SOLANA_ISSUER_PUBLIC_KEY && process.env.SOLANA_ISSUER_PUBLIC_KEY !== issuer.publicKey.toBase58()) throw new Error("Issuer key does not match SOLANA_ISSUER_PUBLIC_KEY.");
-const programId = new PublicKey(process.env.SOLANA_PROGRAM_ID || "BZLiJ62bzRryYp9mRobz47uA66WDgtfTXhhgM25tJyx5");
+const programId = new PublicKey(process.env.SOLANA_PROGRAM_ID || "BsSfvf3B5VLBbCsAsXePkCkyKFzjpZ6P7xStU7NSGidM");
 const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const connection = new Connection(endpoint, "confirmed");
-if (await connection.getGenesisHash() !== "GH7ome3EiwEr7tu9JuTh2dpYWBJK3z69Xm1ZE3MEE6JC") throw new Error("Configured Solana RPC endpoint is not Devnet.");
+if (await connection.getGenesisHash() !== "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG") throw new Error("Configured Solana RPC endpoint is not Devnet.");
 const [config] = PublicKey.findProgramAddressSync([Buffer.from("learnfi_config")], programId);
 const current = await connection.getAccountInfo(config, "confirmed");
 if (current) {

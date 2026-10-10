@@ -5,15 +5,19 @@ anchor_version = "1.2.0"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-learnfi_credentials = "BZLiJ62bzRryYp9mRobz47uA66WDgtfTXhhgM25tJyx5"
-
 [programs.devnet]
-learnfi_credentials = "BZLiJ62bzRryYp9mRobz47uA66WDgtfTXhhgM25tJyx5"
+learnfi_credentials = "BsSfvf3B5VLBbCsAsXePkCkyKFzjpZ6P7xStU7NSGidM"
+
+[programs.localnet]
+learnfi_credentials = "BsSfvf3B5VLBbCsAsXePkCkyKFzjpZ6P7xStU7NSGidM"
 
 [provider]
-cluster = "Devnet"
-wallet = "~/.config/solana/id.json"
+cluster = "devnet"
+wallet = "~/.config/solana/learnfi-deploy-devnet.json"
 
 [scripts]
 test = "npx ts-mocha -p ./tsconfig.anchor.json -t 1000000 programs/learnfi_credentials/tests/**/*.ts"
+[hooks]
+# Optional Anchor workspace hooks can be configured here.
+# No workspace hooks are configured.
+

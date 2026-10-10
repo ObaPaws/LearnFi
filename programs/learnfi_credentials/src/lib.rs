@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("BZLiJ62bzRryYp9mRobz47uA66WDgtfTXhhgM25tJyx5");
+declare_id!("BsSfvf3B5VLBbCsAsXePkCkyKFzjpZ6P7xStU7NSGidM");
 
 pub const CONFIG_SEED: &[u8] = b"learnfi_config";
 pub const CREDENTIAL_SEED: &[u8] = b"learnfi_credential";
