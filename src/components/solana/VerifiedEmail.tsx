@@ -16,7 +16,7 @@ export function VerifiedEmail({ email, verifiedAt }: { email: string | null; ver
       const supabase = createSupabaseBrowserClient();
       const { error } = await supabase.auth.updateUser({ email: address.trim() }, { emailRedirectTo: `${window.location.origin}/auth/email/confirm` });
       if (error) throw error;
-      setMessage("Check your inbox and confirm the email address before registering as a tutor.");
+      setMessage("Verification link requested. Email verification is optional during development.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not send the verification email.");
     } finally {
@@ -24,5 +24,5 @@ export function VerifiedEmail({ email, verifiedAt }: { email: string | null; ver
     }
   }
 
-  return <section className="profile-form"><h2>Verified email</h2>{email && verifiedAt ? <p role="status">{email} is verified.</p> : <p>Add an email address and confirm the link Supabase sends. Tutors need a verified email.</p>}<form onSubmit={requestVerification}><label htmlFor="verified-email">EMAIL ADDRESS</label><input id="verified-email" type="email" autoComplete="email" value={address} onChange={(event) => setAddress(event.target.value)} required/><button className="button button-primary" type="submit" disabled={busy}>{busy ? "Sending…" : "Send verification link"}</button>{message && <p className="form-message" role="status">{message}</p>}</form></section>;
+  return <section className="profile-form"><h2>Email verification <span className="muted-eyebrow">(optional for now)</span></h2>{email && verifiedAt ? <p role="status">{email} is verified.</p> : <p>You can add and verify an email address later. During development, this is not required to create a tutor profile.</p>}<form onSubmit={requestVerification}><label htmlFor="verified-email">EMAIL ADDRESS</label><input id="verified-email" type="email" autoComplete="email" value={address} onChange={(event) => setAddress(event.target.value)} required/><button className="button button-primary" type="submit" disabled={busy}>{busy ? "Sending…" : "Send verification link"}</button>{message && <p className="form-message" role="status">{message}</p>}</form></section>;
 }
