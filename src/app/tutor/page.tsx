@@ -17,7 +17,7 @@ export default async function TutorDashboard({ searchParams }: { searchParams: P
   const { data: { user } } = await auth.auth.getUser();
   if (!user) redirect("/auth/sign-in");
   const admin = createSupabaseAdminClient();
-  const { data: account } = await profileForAuthUser(admin, user.id, "id,username,display_name,wallet_address,x_user_id,wallet_verified_at,verified_email,email_verified_at");
+  const { data: account } = await profileForAuthUser(admin, user.id, "id,username,display_name,wallet_address,x_user_id,wallet_verified_at");
   if (!account) redirect("/auth/sign-in");
   if (!isTutorIdentityComplete(account)) redirect("/profile?status=tutor-requirements");
   const [{ data: profile }, { data: styles }, { data: subjects }, { data: categories }, { data: selectedStyles }, { data: selectedSubjects }, { data: tutorials }, { data: publicationHistory }, { data: reputation }, { data: upcomingClasses }, { data: recentComments }, { data: credential }, { status }] = await Promise.all([

@@ -9,14 +9,14 @@ import Link from "next/link";
 
 type Credential = { address: string; type: "learner" | "tutor"; achievement: string; issuedAt: number; revoked: boolean };
 
-export function WalletCredentials({ linkedWallet }: { linkedWallet: string | null }) {
+export function WalletCredentials({ linkedWallet, walletVerifiedAt }: { linkedWallet: string | null; walletVerifiedAt: string | null }) {
   const wallet = useWallet();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [submitting, setSubmitting] = useState<"learner" | "tutor" | null>(null);
   const connectedAddress = wallet.publicKey?.toBase58() ?? null;
-  const linked = Boolean(linkedWallet && linkedWallet === connectedAddress);
+  const linked = Boolean(linkedWallet && linkedWallet === connectedAddress && walletVerifiedAt);
 
   const loadCredentials = useCallback(async () => {
     const response = await fetch("/api/credentials/wallet", { cache: "no-store" });
@@ -60,7 +60,7 @@ export function WalletCredentials({ linkedWallet }: { linkedWallet: string | nul
   }
 
   return <section className="learner-history-panel wallet-credentials-panel"><div className="workspace-heading"><div><span className="step-label">SOLANA DEVNET</span><h2>Verified wallet & credentials</h2></div></div>
-    <p>{linkedWallet ? `Linked wallet: ${linkedWallet}` : "Connect a wallet to link it to your LearnFi profile."}</p>
+    <p>{linked ? `Verified wallet: ${linkedWallet}` : linkedWallet ? `Saved wallet address: ${linkedWallet}. Complete a fresh signed verification to use it for tutor access and onchain actions.` : "Connect a wallet to link it to your LearnFi profile."}</p>
     {!wallet.connected ? <WalletMultiButton className="button button-quiet">Connect Phantom or Solflare</WalletMultiButton> : !linked ? <button className="button button-primary" onClick={verifyAndLink} disabled={busy}>{busy ? "Verifying…" : `Verify ${connectedAddress} and link wallet`}</button> : <><button className="button button-quiet" onClick={() => void loadCredentials()}>Refresh onchain credentials</button><div className="credential-issue-actions"><button className="button button-quiet" onClick={() => void issue("learner")} disabled={Boolean(submitting)}>{submitting === "learner" ? "Issuing…" : "Issue learner credential"}</button><button className="button button-quiet" onClick={() => void issue("tutor")} disabled={Boolean(submitting)}>{submitting === "tutor" ? "Issuing…" : "Issue tutor credential"}</button></div></>}
     {message && <p role="status" className="tutorial-notice">{message}</p>}
     {linked && <div className="credential-chain-list">{credentials.length ? credentials.map((credential) => <div key={credential.address}><span>{credential.achievement} · {credential.type} · {credential.revoked ? "Revoked" : "Active"}</span><Link href={`/credentials/${credential.address}`}>Verify on chain</Link></div>) : <p>No LearnFi credentials were found for this wallet on Devnet.</p>}</div>}

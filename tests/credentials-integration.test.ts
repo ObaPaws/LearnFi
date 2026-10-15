@@ -61,10 +61,12 @@ test("Supabase Solana identity exposes only a valid wallet address", () => {
   assert.equal(walletAddressFromWeb3Identity({ identities: [{ provider: "x", id: "x-user" }] }), null);
 });
 
-test("tutor registration requires X, verified wallet, and confirmed email", () => {
-  const complete = { xUserId: "x-123", walletAddress: "wallet", walletVerifiedAt: "2026-10-09T00:00:00Z", verifiedEmail: "tutor@example.com", emailVerifiedAt: "2026-10-09T00:00:00Z" };
+test("tutor registration requires linked X and a valid, verified Solana wallet but not email", () => {
+  const complete = { x_user_id: "x-123", wallet_address: Keypair.generate().publicKey.toBase58(), wallet_verified_at: "2026-10-09T00:00:00Z", verified_email: null, email_verified_at: null };
   assert.equal(isTutorIdentityComplete(complete), true);
-  for (const field of Object.keys(complete) as Array<keyof typeof complete>) {
-    assert.equal(isTutorIdentityComplete({ ...complete, [field]: null }), false);
-  }
+  assert.equal(isTutorIdentityComplete({ ...complete, x_user_id: " " }), false);
+  assert.equal(isTutorIdentityComplete({ ...complete, wallet_address: null }), false);
+  assert.equal(isTutorIdentityComplete({ ...complete, wallet_address: "not-a-solana-address" }), false);
+  assert.equal(isTutorIdentityComplete({ ...complete, wallet_verified_at: null }), false);
+  assert.equal(isTutorIdentityComplete({ ...complete, wallet_verified_at: "not-a-date" }), false);
 });
