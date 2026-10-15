@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { updateUsername } from "./actions";
 import { WalletCredentials } from "@/components/solana/WalletCredentials";
 import { VerifiedEmail } from "@/components/solana/VerifiedEmail";
+import { isTutorIdentityComplete } from "@/lib/tutor-identity";
 
 const messages: Record<string, string> = {
   invalid: "Use 3–24 letters, numbers, or underscores.",
@@ -14,8 +15,8 @@ const messages: Record<string, string> = {
   error: "We couldn’t save your username. Please try again.",
   saved: "Your LearnFi username has been updated.",
   "email-verified": "Your email address is verified.",
-  "email-error": "Email verification did not complete. Request a new confirmation link.",
-  "tutor-requirements": "Tutor registration requires your X identity, a verified Solana wallet, and a verified email address.",
+  "email-error": "Email verification did not complete. You can continue developing without it.",
+  "tutor-requirements": "To open the tutor workspace, connect your X identity and verify a Solana wallet. Email verification is optional during development.",
 };
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
@@ -23,9 +24,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/sign-in");
   const admin = createSupabaseAdminClient();
-  const { data: profile } = await profileForAuthUser(admin, user.id, "username,display_name,x_username,wallet_address,verified_email,email_verified_at,wallet_verified_at");
+  const { data: profile } = await profileForAuthUser(admin, user.id, "username,display_name,x_username,x_user_id,wallet_address,wallet_verified_at,verified_email,email_verified_at");
   if (!profile) redirect("/auth/sign-in");
   const { status } = await searchParams;
+  const tutorReady = isTutorIdentityComplete(profile);
 
   return <main className="discover-shell">
     <header className="topbar"><Link className="wordmark" href="/"><span className="brand-mark">L<span>f</span></span>learnfi</Link><Link className="button button-quiet" href="/dashboard"><ArrowLeft size={16}/> Dashboard</Link></header>
@@ -36,6 +38,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       <form action={updateUsername} className="profile-form"><label htmlFor="username">LEARNFI USERNAME</label><div className="username-input"><span>@</span><input id="username" name="username" defaultValue={profile.username} minLength={3} maxLength={24} pattern="[A-Za-z0-9_]+" required aria-describedby="username-hint" /></div><small id="username-hint">3–24 characters · letters, numbers, or underscores</small><button className="button button-primary" type="submit">Save username</button></form>
       <VerifiedEmail email={profile.verified_email} verifiedAt={profile.email_verified_at}/>
       <WalletCredentials linkedWallet={profile.wallet_address}/>
+      <section className="profile-form tutor-continuation">
+        <h2>{tutorReady ? "Your tutor workspace is ready" : "Finish tutor setup"}</h2>
+        {tutorReady ? <><p><Check size={15} /> Your X identity and Solana wallet are verified. Email verification is not required during development.</p><Link className="button button-primary" href="/tutor">Continue to tutor workspace <ArrowRight size={15}/></Link></> : <><p>To continue, sign in with X and connect a Solana wallet that supports signed messages. Verify and link the wallet in the section above. You can skip email verification.</p><ul><li>{profile.x_user_id ? "X identity connected" : "X identity not found on your LearnFi profile"}</li><li>{profile.wallet_address && profile.wallet_verified_at ? "Solana wallet verified" : "Solana wallet not yet verified"}</li></ul></>}
+      </section>
     </section>
   </main>;
 }
