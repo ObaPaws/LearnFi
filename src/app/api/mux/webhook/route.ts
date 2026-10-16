@@ -17,13 +17,23 @@ export async function POST(request: Request) {
     const { data } = await admin.from("tutorials").select("id").eq("video_upload_id", uploadId).maybeSingle();
     tutorialId = data?.id;
   }
-  if (!tutorialId) return NextResponse.json({ received: true });
-  if (event.type === "video.upload.asset_created" && asset.id) {
-    await admin.from("tutorials").update({ video_asset_id: asset.asset_id ?? null, video_processing_status: "processing", status: "processing" }).eq("id", tutorialId).eq("video_provider", "mux").neq("video_processing_status", "ready");
-  } else if (event.type === "video.asset.ready" && asset.id) {
-    await admin.from("tutorials").update({ video_asset_id: asset.id, playback_id: asset.playback_ids?.[0]?.id ?? null, duration_seconds: Math.max(1, Math.floor(asset.duration ?? 1)), video_processing_status: "ready", status: "draft" }).eq("id", tutorialId).eq("video_provider", "mux");
-  } else if (event.type === "video.asset.errored" || event.type === "video.upload.errored") {
-    await admin.from("tutorials").update({ video_processing_status: "errored", status: "draft" }).eq("id", tutorialId).eq("video_provider", "mux").neq("video_processing_status", "ready");
+  const isUploadCreated = event.type === "video.upload.asset_created";
+  const isAssetReady = event.type === "video.asset.ready";
+  const isErrored = event.type === "video.asset.errored" || event.type === "video.upload.errored";
+  if (!tutorialId) {
+    return isUploadCreated || isAssetReady || isErrored
+      ? NextResponse.json({ error: "No LearnFi tutorial matches this Mux event." }, { status: 500 })
+      : NextResponse.json({ received: true });
+  }
+  if (isUploadCreated && asset.asset_id) {
+    const { error } = await admin.from("tutorials").update({ video_asset_id: asset.asset_id, video_processing_status: "processing", status: "processing" }).eq("id", tutorialId).eq("video_provider", "mux").neq("video_processing_status", "ready");
+    if (error) return NextResponse.json({ error: "Could not record the Mux asset." }, { status: 500 });
+  } else if (isAssetReady && asset.id && asset.playback_ids?.[0]?.id) {
+    const { data, error } = await admin.from("tutorials").update({ video_asset_id: asset.id, playback_id: asset.playback_ids[0].id, duration_seconds: Math.max(1, Math.floor(asset.duration ?? 1)), video_processing_status: "ready", status: "draft" }).eq("id", tutorialId).eq("video_provider", "mux").select("id").maybeSingle();
+    if (error || !data) return NextResponse.json({ error: "Could not record the ready Mux video." }, { status: 500 });
+  } else if (isErrored) {
+    const { error } = await admin.from("tutorials").update({ video_processing_status: "errored", status: "draft" }).eq("id", tutorialId).eq("video_provider", "mux").neq("video_processing_status", "ready");
+    if (error) return NextResponse.json({ error: "Could not record the Mux processing error." }, { status: 500 });
   }
   return NextResponse.json({ received: true });
 }

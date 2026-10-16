@@ -99,9 +99,9 @@ export async function publishTutorial(formData: FormData) {
   const parsed = z.object({ tutorialId: z.string().uuid(), priceType: z.enum(["free", "premium"]), priceAmount: z.coerce.number().positive().max(100000).optional() }).safeParse({ tutorialId: formData.get("tutorialId"), priceType: formData.get("priceType") ?? "free", priceAmount: formData.get("priceAmount") || undefined });
   if (!parsed.success || (parsed.data.priceType === "premium" && !parsed.data.priceAmount)) redirect("/tutor?status=invalid");
   const { admin, userId } = await signedInUser();
-  const { data: tutorial } = await admin.from("tutorials").select("id,video_provider,video_processing_status").eq("id", parsed.data.tutorialId).eq("tutor_id", userId).maybeSingle();
+  const { data: tutorial } = await admin.from("tutorials").select("id,video_provider,video_processing_status,playback_id").eq("id", parsed.data.tutorialId).eq("tutor_id", userId).maybeSingle();
   if (!tutorial) redirect("/tutor?status=error");
-  if (tutorial.video_processing_status !== "ready") redirect("/tutor?status=video-required");
+  if (tutorial.video_processing_status !== "ready" || (tutorial.video_provider === "mux" && !tutorial.playback_id)) redirect("/tutor?status=video-required");
   const { error } = await admin.rpc("publish_tutorial", { p_tutor_id: userId, p_tutorial_id: tutorial.id, p_price_type: parsed.data.priceType, p_price_amount: parsed.data.priceAmount ?? undefined });
   redirect(error ? "/tutor?status=error" : "/tutor?status=tutorial-published");
 }
