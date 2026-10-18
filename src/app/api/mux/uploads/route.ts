@@ -25,7 +25,13 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: "The upload could not be attached to the tutorial." }, { status: 500 });
     return NextResponse.json({ uploadUrl: upload.url, uploadId: upload.id });
   } catch (error) {
-    const message = error instanceof Error && error.message.includes("not configured") ? "Mux upload settings are not configured on the server." : "Mux could not create an upload. Please try again.";
+    const errorMessage = error instanceof Error ? error.message : "Unknown Mux upload error.";
+    console.error("Could not create a Mux direct upload.", errorMessage);
+    const message = errorMessage.includes("not configured")
+      ? "Mux upload settings are not configured on the server."
+      : errorMessage.includes("origin is not allowed")
+        ? "This site is not allowed to create Mux uploads. Check the deployed app URL configuration."
+        : "Mux could not create an upload. Check the server logs for the provider response.";
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

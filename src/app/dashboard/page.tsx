@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { saveLearnerPreferences } from "./actions";
 import { isCredentialActiveOnchain } from "@/lib/credentials/solana";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 
 const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
 
@@ -54,7 +55,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const displayName = profile.display_name?.trim() || profile.username || "learner";
   return <main className="discover-shell dashboard-shell">
-    <header className="topbar"><Link className="wordmark" href="/" aria-label="LearnFi home"><span className="brand-mark">L<span>f</span></span>learnfi</Link><div className="dashboard-nav"><Link href="/academy">Academy <ArrowRight size={15}/></Link><Link href="/dashboard/tutor">Tutor workspace</Link><Link href="/profile" className="user-pill"><UserRound size={13}/>{profile.display_name || `@${profile.username}`}</Link></div></header>
+    <header className="topbar"><Link className="wordmark" href="/" aria-label="LearnFi home"><span className="brand-mark">L<span>f</span></span>learnfi</Link><div className="dashboard-nav"><Link href="/academy">Academy <ArrowRight size={15}/></Link><Link href="/dashboard/tutor">Tutor workspace</Link><Link href="/profile" className="user-pill"><UserRound size={13}/>{profile.display_name || `@${profile.username}`}</Link><SignOutButton/></div></header>
     <section className="learning-desk">
       <div className="desk-heading"><div><div className="eyebrow muted-eyebrow">YOUR LEARNING DESK</div><h1>Welcome back, <span className="serif-accent">{displayName.split(/\s+/)[0]}.</span></h1><p>Your learning, your pace. Progress is earned one meaningful step at a time.</p></div><Link className="button button-primary" href="/tutors">Find a tutor <ArrowRight size={16}/></Link></div>
       <div className="desk-grid">

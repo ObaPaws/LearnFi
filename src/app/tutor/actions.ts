@@ -14,7 +14,7 @@ async function signedInUser() {
   const admin = createSupabaseAdminClient();
   const { data: account } = await profileForAuthUser(admin, user.id, "id,x_user_id,wallet_address,wallet_verified_at");
   if (!account) redirect("/auth/sign-in");
-  if (!isTutorIdentityComplete(account)) redirect("/profile?status=tutor-requirements");
+  if (!isTutorIdentityComplete(account, user.id)) redirect("/profile?status=tutor-requirements");
   return { admin, userId: account.id };
 }
 

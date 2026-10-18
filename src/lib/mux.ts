@@ -26,9 +26,19 @@ export async function createMuxDirectUpload(tutorialId: string, origin: string) 
     }),
     cache: "no-store",
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error("Mux could not create a direct upload.");
-  return payload.data as { id: string; url: string; status: string };
+  const payload = await response.json().catch(() => null) as {
+    data?: { id: string; url: string; status: string };
+    errors?: Array<{ type?: string; message?: string }>;
+  } | null;
+  if (!response.ok) {
+    console.error("Mux direct upload request failed.", {
+      status: response.status,
+      errors: payload?.errors?.map(({ type, message }) => ({ type, message })),
+    });
+    throw new Error("Mux rejected the direct upload request.");
+  }
+  if (!payload?.data?.id || !payload.data.url) throw new Error("Mux returned an incomplete direct upload response.");
+  return payload.data;
 }
 
 export function verifyMuxWebhook(rawBody: string, signatureHeader: string | null) {

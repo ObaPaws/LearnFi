@@ -15,6 +15,12 @@ export function isWalletIdentityVerified(identity: Pick<TutorIdentity, "wallet_a
   }
 }
 
-export function isTutorIdentityComplete(identity: TutorIdentity | null | undefined): boolean {
-  return Boolean(identity?.x_user_id.trim() && isWalletIdentityVerified(identity));
+export function isTutorDevBypassEnabled(authUserId: string | null | undefined): boolean {
+  if (!authUserId) return false;
+  const allowedUserIds = process.env.TUTOR_DEV_BYPASS_USER_IDS?.split(/[\s,]+/).filter(Boolean) ?? [];
+  return allowedUserIds.includes(authUserId);
+}
+
+export function isTutorIdentityComplete(identity: TutorIdentity | null | undefined, authUserId?: string | null): boolean {
+  return isTutorDevBypassEnabled(authUserId) || Boolean(identity?.x_user_id.trim() && isWalletIdentityVerified(identity));
 }
