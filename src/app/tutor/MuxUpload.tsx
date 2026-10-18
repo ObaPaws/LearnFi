@@ -4,31 +4,16 @@ import Script from "next/script";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UploadCloud } from "lucide-react";
-import type { DetailedHTMLProps, HTMLAttributes, RefObject } from "react";
-
-declare module "react" {
-  namespace JSX {
-    interface IntrinsicElements {
-      "mux-player": DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
-        "playback-id": string;
-        "metadata-video-id": string;
-        "metadata-video-title": string;
-        "metadata-viewer-user-id": string;
-        "stream-type"?: string;
-        controls?: boolean;
-        ref?: RefObject<HTMLElement | null>;
-      };
-    }
-  }
-}
 
 type UploadResponse = { uploadUrl?: string; error?: string };
 
-export function MuxUpload({ tutorialId, ready, videoStatus, playbackId }: { tutorialId: string; ready: boolean; videoStatus: string; playbackId: string | null }) {
+export function MuxUpload({ tutorialId, ready, videoStatus, playbackId, replacementPending = false, showPreview = true }: { tutorialId: string; ready: boolean; videoStatus: string; playbackId: string | null; replacementPending?: boolean; showPreview?: boolean }) {
   const router = useRouter();
   const [progress, setProgress] = useState<number | null>(null);
   const [message, setMessage] = useState("");
-  const statusMessage = ready
+  const statusMessage = replacementPending
+    ? "The current video remains live while Mux processes its replacement."
+    : ready
     ? "Video ready to preview and publish."
     : videoStatus === "processing"
       ? "Mux is processing your video. This can take a few minutes."
@@ -41,10 +26,10 @@ export function MuxUpload({ tutorialId, ready, videoStatus, playbackId }: { tuto
           : message || "Choose an MP4, MOV, or WebM video.";
 
   useEffect(() => {
-    if (videoStatus !== "uploading" && videoStatus !== "processing") return;
+    if (!replacementPending && videoStatus !== "uploading" && videoStatus !== "processing") return;
     const refresh = window.setInterval(() => router.refresh(), 5000);
     return () => window.clearInterval(refresh);
-  }, [router, videoStatus]);
+  }, [router, videoStatus, replacementPending]);
 
   async function uploadVideo(file?: File) {
     if (!file) return;
@@ -85,9 +70,9 @@ export function MuxUpload({ tutorialId, ready, videoStatus, playbackId }: { tuto
   }
 
   return <div className="mux-upload">
-    <label className="button button-quiet mux-upload-button"><UploadCloud size={15}/>{progress === null ? "Upload video" : `Uploading ${progress}%`}<input aria-label="Upload tutorial video" type="file" accept="video/*" disabled={progress !== null && progress < 100} onChange={(event) => void uploadVideo(event.currentTarget.files?.[0])}/></label>
+    <label className="button button-quiet mux-upload-button"><UploadCloud size={15}/>{progress === null ? (replacementPending ? "Upload replacement again" : ready ? "Replace video" : "Upload video") : `Uploading ${progress}%`}<input aria-label={ready ? "Replace tutorial video" : "Upload tutorial video"} type="file" accept="video/*" disabled={Boolean(progress !== null && progress < 100)} onChange={(event) => void uploadVideo(event.currentTarget.files?.[0])}/></label>
     <small role="status">{statusMessage}</small>
     {progress !== null && progress < 100 && <progress max={100} value={progress}/>}
-    {ready && playbackId && <div className="academy-video-frame"><Script src="https://cdn.jsdelivr.net/npm/@mux/mux-player@3" strategy="afterInteractive"/><div className="academy-player"><mux-player playback-id={playbackId} metadata-video-id={tutorialId} metadata-video-title="Tutor draft preview" metadata-viewer-user-id={tutorialId} stream-type="on-demand" controls/></div></div>}
+    {showPreview && ready && playbackId && <div className="academy-video-frame"><Script src="https://cdn.jsdelivr.net/npm/@mux/mux-player@3" strategy="afterInteractive"/><div className="academy-player"><mux-player playback-id={playbackId} metadata-video-id={tutorialId} metadata-video-title="Tutor draft preview" metadata-viewer-user-id={tutorialId} stream-type="on-demand" controls/></div></div>}
   </div>;
 }

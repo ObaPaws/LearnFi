@@ -21,7 +21,7 @@ export async function createMuxDirectUpload(tutorialId: string, origin: string) 
     headers: { authorization, "content-type": "application/json" },
     body: JSON.stringify({
       cors_origin: allowedOrigin,
-      new_asset_settings: { playback_policies: ["public"], video_quality: "basic", passthrough: tutorialId },
+      new_asset_settings: { playback_policies: ["public", "signed"], video_quality: "basic", passthrough: tutorialId },
       timeout: 3600,
     }),
     cache: "no-store",
@@ -39,6 +39,50 @@ export async function createMuxDirectUpload(tutorialId: string, origin: string) 
   }
   if (!payload?.data?.id || !payload.data.url) throw new Error("Mux returned an incomplete direct upload response.");
   return payload.data;
+}
+
+export function muxPlaybackSigningConfigured() {
+  return Boolean(process.env.MUX_SIGNING_KEY_ID && process.env.MUX_SIGNING_PRIVATE_KEY);
+}
+
+export async function createMuxSignedPlaybackId(assetId: string) {
+  const response = await fetch(`${apiBase}/assets/${encodeURIComponent(assetId)}/playback-ids`, {
+    method: "POST",
+    headers: { authorization: muxCredentials(), "content-type": "application/json" },
+    body: JSON.stringify({ policy: "signed" }),
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => null) as { data?: { id?: string; policy?: string } } | null;
+  if (!response.ok || !payload?.data?.id || payload.data.policy !== "signed") throw new Error("Mux could not create a signed playback ID.");
+  return payload.data.id;
+}
+
+export async function deleteMuxPlaybackId(assetId: string, playbackId: string) {
+  const response = await fetch(`${apiBase}/assets/${encodeURIComponent(assetId)}/playback-ids/${encodeURIComponent(playbackId)}`, {
+    method: "DELETE",
+    headers: { authorization: muxCredentials() },
+    cache: "no-store",
+  });
+  if (!response.ok && response.status !== 404) throw new Error("Mux could not remove the public playback ID.");
+}
+
+export async function deleteMuxAsset(assetId: string) {
+  const response = await fetch(`${apiBase}/assets/${encodeURIComponent(assetId)}`, {
+    method: "DELETE",
+    headers: { authorization: muxCredentials() },
+    cache: "no-store",
+  });
+  if (!response.ok && response.status !== 404) throw new Error("Mux could not delete the video asset.");
+}
+
+export async function cancelMuxDirectUpload(uploadId: string) {
+  const response = await fetch(`${apiBase}/uploads/${encodeURIComponent(uploadId)}/cancel`, {
+    method: "PUT",
+    headers: { authorization: muxCredentials(), "content-type": "application/json" },
+    body: "{}",
+    cache: "no-store",
+  });
+  if (!response.ok && response.status !== 404) throw new Error("Mux could not cancel the direct upload.");
 }
 
 export function verifyMuxWebhook(rawBody: string, signatureHeader: string | null) {

@@ -5,7 +5,8 @@ import { z } from "zod";
 import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isLearnerWatchableTutorial } from "@/lib/tutorial-access";
+import { learnerHasTutorialAccess } from "@/lib/tutorial-access";
+import { isCredentialActiveOnchain } from "@/lib/credentials/solana";
 
 const idSchema = z.string().uuid();
 
@@ -24,7 +25,7 @@ export async function startAcademyTutorial(formData: FormData) {
   if (!id.success) redirect("/academy");
   const { admin, learnerId } = await learnerContext();
   const { data: tutorial } = await admin.from("tutorials").select("id,slug,tutor_id,status,is_published,video_processing_status,price_type,publication_number").eq("id", id.data).maybeSingle();
-  if (!tutorial || !isLearnerWatchableTutorial({ status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) redirect("/academy");
+  if (!tutorial || !await learnerHasTutorialAccess(admin, learnerId, { id: tutorial.id, tutorId: tutorial.tutor_id, status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) redirect("/academy");
   const now = new Date().toISOString();
   const [{ error: progressError }, { error: engagementError }] = await Promise.all([
     admin.from("tutorial_progress").upsert({ learner_id: learnerId, tutorial_id: tutorial.id, last_activity_at: now }, { onConflict: "learner_id,tutorial_id", ignoreDuplicates: true }),
@@ -38,8 +39,8 @@ export async function submitTutorialQuiz(formData: FormData) {
   const parsed = z.object({ tutorialId: idSchema, quizId: idSchema, slug: z.string().min(1).max(180) }).safeParse({ tutorialId: formData.get("tutorialId"), quizId: formData.get("quizId"), slug: formData.get("slug") });
   if (!parsed.success) redirect("/academy");
   const { admin, learnerId } = await learnerContext();
-  const { data: tutorial } = await admin.from("tutorials").select("status,is_published,video_processing_status,price_type,publication_number").eq("id", parsed.data.tutorialId).eq("slug", parsed.data.slug).maybeSingle();
-  if (!tutorial || !isLearnerWatchableTutorial({ status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) redirect(`/academy/${parsed.data.slug}?status=quiz-unavailable`);
+  const { data: tutorial } = await admin.from("tutorials").select("id,tutor_id,status,is_published,video_processing_status,price_type,publication_number").eq("id", parsed.data.tutorialId).eq("slug", parsed.data.slug).maybeSingle();
+  if (!tutorial || !await learnerHasTutorialAccess(admin, learnerId, { id: tutorial.id, tutorId: tutorial.tutor_id, status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) redirect(`/academy/${parsed.data.slug}?status=quiz-unavailable`);
   const { data: watchedProgress } = await admin.from("tutorial_progress").select("video_percent_watched").eq("learner_id", learnerId).eq("tutorial_id", parsed.data.tutorialId).maybeSingle();
   if (!watchedProgress || Number(watchedProgress.video_percent_watched) < 90) redirect(`/academy/${parsed.data.slug}?status=assessment-watch-required`);
   const { data: quiz } = await admin.from("quizzes").select("id,title,passing_score,tutorial_id").eq("id", parsed.data.quizId).eq("tutorial_id", parsed.data.tutorialId).maybeSingle();
@@ -75,13 +76,39 @@ export async function submitTutorialReview(formData: FormData) {
   const { admin, learnerId } = await learnerContext();
   const { data: tutorial } = await admin.from("tutorials").select("id,slug,tutor_id").eq("id", parsed.data.tutorialId).eq("status", "published").maybeSingle();
   if (!tutorial) redirect("/academy");
-  const { data: progress } = await admin.from("tutorial_progress").select("completed_at").eq("learner_id", learnerId).eq("tutorial_id", tutorial.id).maybeSingle();
-  if (!progress?.completed_at) redirect(`/academy/${tutorial.slug}?status=review-ineligible`);
+  if (tutorial.tutor_id === learnerId) redirect(`/academy/${tutorial.slug}?status=review-ineligible`);
+  const [{ data: progress }, { data: learnerCredential }, { data: watchedTutorLessons }, { data: learnerAccount }] = await Promise.all([
+    admin.from("tutorial_progress").select("completed_at").eq("learner_id", learnerId).eq("tutorial_id", tutorial.id).maybeSingle(),
+    admin.from("credentials").select("pda_address").eq("user_id", learnerId).eq("type", "learner").maybeSingle(),
+    admin.from("tutorial_progress").select("tutorial_id,tutorials!inner(tutor_id)").eq("learner_id", learnerId).gte("video_percent_watched", 90).eq("tutorials.tutor_id", tutorial.tutor_id),
+    admin.from("users").select("wallet_address").eq("id", learnerId).maybeSingle(),
+  ]);
+  const learnerCredentialActive = await isCredentialActiveOnchain(learnerCredential?.pda_address ?? null, learnerAccount?.wallet_address ?? null);
+  const watchedCount = new Set((watchedTutorLessons ?? []).map((row: any) => row.tutorial_id)).size;
+  if (!progress?.completed_at || !learnerCredentialActive || watchedCount < 2) redirect(`/academy/${tutorial.slug}?status=review-ineligible`);
   const { data: existing } = await admin.from("reviews").select("id").eq("learner_id", learnerId).eq("tutorial_id", tutorial.id).maybeSingle();
   const review = { tutor_id: tutorial.tutor_id, learner_id: learnerId, tutorial_id: tutorial.id, clarity_score: parsed.data.clarity, effectiveness_score: parsed.data.effectiveness, accuracy_score: parsed.data.accuracy, usefulness_score: parsed.data.usefulness, teaching_feedback: parsed.data.feedback || null, eligible_at: new Date().toISOString(), would_learn_again: parsed.data.wouldLearnAgain ? parsed.data.wouldLearnAgain === "yes" : null };
   const result = existing ? await admin.from("reviews").update(review).eq("id", existing.id) : await admin.from("reviews").insert(review);
   if (result.error) redirect(`/academy/${tutorial.slug}?status=error`);
   redirect(`/academy/${tutorial.slug}?status=review-saved`);
+}
+
+export async function removeTutorialReview(formData: FormData) {
+  const tutorialId = idSchema.safeParse(formData.get("tutorialId"));
+  if (!tutorialId.success) redirect("/academy");
+  const { admin, learnerId } = await learnerContext();
+  const { data: tutorial } = await admin.from("tutorials").select("id,slug,tutor_id,status").eq("id", tutorialId.data).eq("status", "published").maybeSingle();
+  if (!tutorial) redirect("/academy");
+  const [{ data: learnerCredential }, { data: watchedTutorLessons }, { data: learnerAccount }] = await Promise.all([
+    admin.from("credentials").select("pda_address").eq("user_id", learnerId).eq("type", "learner").maybeSingle(),
+    admin.from("tutorial_progress").select("tutorial_id,tutorials!inner(tutor_id)").eq("learner_id", learnerId).gte("video_percent_watched", 90).eq("tutorials.tutor_id", tutorial.tutor_id),
+    admin.from("users").select("wallet_address").eq("id", learnerId).maybeSingle(),
+  ]);
+  const credentialActive = await isCredentialActiveOnchain(learnerCredential?.pda_address ?? null, learnerAccount?.wallet_address ?? null);
+  const watchedCount = new Set((watchedTutorLessons ?? []).map((row: any) => row.tutorial_id)).size;
+  if (!credentialActive || watchedCount < 2) redirect(`/academy/${tutorial.slug}?status=review-ineligible`);
+  await admin.from("reviews").delete().eq("learner_id", learnerId).eq("tutorial_id", tutorial.id);
+  redirect(`/academy/${tutorial.slug}?status=review-removed`);
 }
 
 export async function registerForLiveClass(formData: FormData) {
@@ -96,8 +123,13 @@ export async function postTutorialComment(formData: FormData) {
   const parsed = z.object({ tutorialId: idSchema, body: z.string().trim().min(1).max(4000), parentCommentId: z.union([z.literal(""), idSchema]) }).safeParse({ tutorialId: formData.get("tutorialId"), body: formData.get("body"), parentCommentId: formData.get("parentCommentId") ?? "" });
   if (!parsed.success) redirect("/academy");
   const { admin, learnerId } = await learnerContext();
-  const { data: tutorial } = await admin.from("tutorials").select("id,slug,status").eq("id", parsed.data.tutorialId).maybeSingle();
+  const { data: tutorial } = await admin.from("tutorials").select("id,slug,status,tutor_id").eq("id", parsed.data.tutorialId).maybeSingle();
   if (!tutorial || tutorial.status !== "published") redirect("/academy");
+  if (/(\b(?:https?|ftp|javascript|data):|\bwww\.|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?::\d+)?(?:[/?#][^\s]*)?)/i.test(parsed.data.body)) redirect(`/academy/${tutorial.slug}?status=comment-links-blocked`);
+  if (tutorial.tutor_id !== learnerId) {
+    const { data: progress } = await admin.from("tutorial_progress").select("video_percent_watched").eq("learner_id", learnerId).eq("tutorial_id", tutorial.id).maybeSingle();
+    if (Number(progress?.video_percent_watched ?? 0) < 90) redirect(`/academy/${tutorial.slug}?status=comment-watch-required`);
+  }
   if (parsed.data.parentCommentId) {
     const { data: parent } = await admin.from("tutorial_comments").select("id,tutorial_id,status").eq("id", parsed.data.parentCommentId).maybeSingle();
     if (!parent || parent.tutorial_id !== tutorial.id || parent.status !== "visible") redirect(`/academy/${tutorial.slug}?status=comment-invalid`);
@@ -133,6 +165,7 @@ export async function respondToTutorialComment(formData: FormData) {
   if (!parsed.success) redirect("/academy");
   const { admin, learnerId } = await learnerContext();
   const { data: tutorial } = await admin.from("tutorials").select("id,slug,tutor_id").eq("id", parsed.data.tutorialId).eq("status", "published").maybeSingle();
+  if (/(\b(?:https?|ftp|javascript|data):|\bwww\.|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?::\d+)?(?:[/?#][^\s]*)?)/i.test(parsed.data.body)) redirect(tutorial ? `/academy/${tutorial.slug}?status=comment-links-blocked` : "/academy");
   const { data: parent } = await admin.from("tutorial_comments").select("id,tutorial_id,status").eq("id", parsed.data.commentId).maybeSingle();
   if (!tutorial || tutorial.tutor_id !== learnerId || !parent || parent.tutorial_id !== tutorial.id || parent.status !== "visible") redirect("/academy");
   const { error: insertError } = await admin.from("tutorial_comments").insert({ tutorial_id: tutorial.id, author_id: learnerId, parent_comment_id: parent.id, tutor_response_to_id: parent.id, body: parsed.data.body });

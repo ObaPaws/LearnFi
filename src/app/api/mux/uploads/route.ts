@@ -16,12 +16,14 @@ export async function POST(request: Request) {
   const admin = createSupabaseAdminClient();
   const { data: account } = await profileForAuthUser(admin, user.id, "id");
   if (!account) return NextResponse.json({ error: "LearnFi profile not found." }, { status: 403 });
-  const { data: tutorial } = await admin.from("tutorials").select("id,status,video_upload_id").eq("id", parsed.data.tutorialId).eq("tutor_id", account.id).maybeSingle();
+  const { data: tutorial } = await admin.from("tutorials").select("id,status,is_published,video_upload_id").eq("id", parsed.data.tutorialId).eq("tutor_id", account.id).maybeSingle();
   if (!tutorial) return NextResponse.json({ error: "You cannot upload to this tutorial." }, { status: 403 });
-  if (tutorial.status === "published") return NextResponse.json({ error: "Published tutorials cannot replace their video." }, { status: 409 });
   try {
     const upload = await createMuxDirectUpload(tutorial.id, request.headers.get("origin") ?? new URL(request.url).origin);
-    const { error } = await admin.from("tutorials").update({ video_provider: "mux", video_upload_id: upload.id, video_processing_status: "uploading", status: "uploading" }).eq("id", tutorial.id).eq("tutor_id", account.id);
+    const update = tutorial.is_published || tutorial.status === "published"
+      ? await (admin as any).from("tutorials").update({ video_provider: "mux", video_upload_id: upload.id, video_replacement_pending: true }).eq("id", tutorial.id).eq("tutor_id", account.id)
+      : await admin.from("tutorials").update({ video_provider: "mux", video_upload_id: upload.id, video_processing_status: "uploading", status: "uploading" }).eq("id", tutorial.id).eq("tutor_id", account.id);
+    const { error } = update;
     if (error) return NextResponse.json({ error: "The upload could not be attached to the tutorial." }, { status: 500 });
     return NextResponse.json({ uploadUrl: upload.url, uploadId: upload.id });
   } catch (error) {

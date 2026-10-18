@@ -3,7 +3,7 @@ import { z } from "zod";
 import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isLearnerWatchableTutorial } from "@/lib/tutorial-access";
+import { learnerHasTutorialAccess } from "@/lib/tutorial-access";
 
 const bodySchema = z.object({ tutorialId: z.string().uuid(), position: z.number().int().min(0).max(86_400) });
 
@@ -16,8 +16,8 @@ export async function POST(request: Request) {
   const admin = createSupabaseAdminClient();
   const { data: learner } = await profileForAuthUser(admin, user.id, "id");
   if (!learner) return NextResponse.json({ error: "Learner profile not found." }, { status: 403 });
-  const { data: tutorial } = await admin.from("tutorials").select("status,is_published,video_processing_status,price_type,publication_number").eq("id", parsed.data.tutorialId).maybeSingle();
-  if (!tutorial || !isLearnerWatchableTutorial({ status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) return NextResponse.json({ error: "This tutorial is not available to watch." }, { status: 403 });
+  const { data: tutorial } = await admin.from("tutorials").select("id,tutor_id,status,is_published,video_processing_status,price_type,publication_number").eq("id", parsed.data.tutorialId).maybeSingle();
+  if (!tutorial || !await learnerHasTutorialAccess(admin, learner.id, { id: tutorial.id, tutorId: tutorial.tutor_id, status: tutorial.status, isPublished: tutorial.is_published, videoProcessingStatus: tutorial.video_processing_status, priceType: tutorial.price_type, publicationNumber: tutorial.publication_number })) return NextResponse.json({ error: "This tutorial is not available to watch." }, { status: 403 });
   const { data, error } = await admin.rpc("record_tutorial_watch", { p_learner_id: learner.id, p_tutorial_id: parsed.data.tutorialId, p_playback_position_seconds: parsed.data.position });
   if (error) return NextResponse.json({ error: "Watch progress could not be recorded." }, { status: 400 });
   const percent = Number(data ?? 0);

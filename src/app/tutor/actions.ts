@@ -6,6 +6,7 @@ import { profileForAuthUser } from "@/lib/auth-profile";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isTutorIdentityComplete } from "@/lib/tutor-identity";
+import { cancelMuxDirectUpload, createMuxSignedPlaybackId, deleteMuxAsset, deleteMuxPlaybackId, muxPlaybackSigningConfigured } from "@/lib/mux";
 
 async function signedInUser() {
   const auth = await createSupabaseServerClient();
@@ -96,14 +97,72 @@ export async function createTutorial(formData: FormData) {
 }
 
 export async function publishTutorial(formData: FormData) {
-  const parsed = z.object({ tutorialId: z.string().uuid(), priceType: z.enum(["free", "premium"]), priceAmount: z.coerce.number().positive().max(100000).optional() }).safeParse({ tutorialId: formData.get("tutorialId"), priceType: formData.get("priceType") ?? "free", priceAmount: formData.get("priceAmount") || undefined });
+  const parsed = z.object({ tutorialId: z.string().uuid(), priceType: z.enum(["free", "premium"]), priceAmount: z.coerce.number().positive().multipleOf(0.01).max(100000).optional() }).safeParse({ tutorialId: formData.get("tutorialId"), priceType: formData.get("priceType") ?? "free", priceAmount: formData.get("priceAmount") || undefined });
   if (!parsed.success || (parsed.data.priceType === "premium" && !parsed.data.priceAmount)) redirect("/tutor?status=invalid");
   const { admin, userId } = await signedInUser();
-  const { data: tutorial } = await admin.from("tutorials").select("id,video_provider,video_processing_status,playback_id").eq("id", parsed.data.tutorialId).eq("tutor_id", userId).maybeSingle();
+  const { data: tutorial } = await (admin as any).from("tutorials").select("id,video_provider,video_processing_status,playback_id,signed_playback_id,video_asset_id").eq("id", parsed.data.tutorialId).eq("tutor_id", userId).maybeSingle();
   if (!tutorial) redirect("/tutor?status=error");
   if (tutorial.video_processing_status !== "ready" || (tutorial.video_provider === "mux" && !tutorial.playback_id)) redirect("/tutor?status=video-required");
+  const publicPlaybackId = tutorial.playback_id;
+  let securePlaybackId: string | null = null;
+  if (parsed.data.priceType === "premium") {
+    if (tutorial.video_provider !== "mux" || !tutorial.video_asset_id) redirect("/tutor?status=premium-mux-required");
+    if (!muxPlaybackSigningConfigured()) redirect("/tutor?status=secure-playback-setup");
+    try {
+      securePlaybackId = tutorial.signed_playback_id || await createMuxSignedPlaybackId(tutorial.video_asset_id);
+    } catch { redirect("/tutor?status=secure-playback-error"); }
+    const { error: playbackError } = await (admin as any).from("tutorials").update({ playback_id: securePlaybackId, signed_playback_id: securePlaybackId }).eq("id", tutorial.id).eq("tutor_id", userId);
+    if (playbackError) redirect("/tutor?status=secure-playback-error");
+  }
   const { error } = await admin.rpc("publish_tutorial", { p_tutor_id: userId, p_tutorial_id: tutorial.id, p_price_type: parsed.data.priceType, p_price_amount: parsed.data.priceAmount ?? undefined });
+  if (error && securePlaybackId) await (admin as any).from("tutorials").update({ playback_id: publicPlaybackId }).eq("id", tutorial.id).eq("tutor_id", userId);
+  if (!error && securePlaybackId && publicPlaybackId && publicPlaybackId !== securePlaybackId && tutorial.video_asset_id) {
+    try { await deleteMuxPlaybackId(tutorial.video_asset_id, publicPlaybackId); }
+    catch { redirect("/tutor?status=secure-playback-cleanup"); }
+  }
   redirect(error ? "/tutor?status=error" : "/tutor?status=tutorial-published");
+}
+
+export async function updateTutorial(formData: FormData) {
+  const parsed = z.object({ tutorialId: z.string().uuid(), title: z.string().trim().min(3).max(140), description: z.string().trim().max(4000), subjectId: z.union([z.literal(""), z.string().uuid()]), categoryId: z.union([z.literal(""), z.string().uuid()]), subcategory: z.string().trim().max(100), difficulty: z.enum(["beginner", "intermediate", "advanced"]) }).safeParse({ tutorialId: formData.get("tutorialId"), title: formData.get("title"), description: formData.get("description") ?? "", subjectId: formData.get("subjectId") ?? "", categoryId: formData.get("categoryId") ?? "", subcategory: formData.get("subcategory") ?? "", difficulty: formData.get("difficulty") ?? "beginner" });
+  if (!parsed.success) redirect("/tutor?status=invalid");
+  const { admin, userId } = await signedInUser();
+  const { error } = await admin.from("tutorials").update({ title: parsed.data.title, description: parsed.data.description || null, summary: parsed.data.description || null, subject_id: parsed.data.subjectId || null, category_id: parsed.data.categoryId || null, subcategory: parsed.data.subcategory || null, difficulty: parsed.data.difficulty }).eq("id", parsed.data.tutorialId).eq("tutor_id", userId);
+  redirect(error ? "/tutor?status=error" : "/tutor?status=tutorial-updated");
+}
+
+export async function deleteTutorial(formData: FormData) {
+  const id = z.string().uuid().safeParse(formData.get("tutorialId"));
+  if (!id.success) redirect("/tutor?status=invalid");
+  const { admin, userId } = await signedInUser();
+  const { data: tutorial } = await (admin as any).from("tutorials").select("id,status,is_published,publication_number,price_type,video_asset_id,video_upload_id").eq("id", id.data).eq("tutor_id", userId).maybeSingle();
+  if (!tutorial) redirect("/tutor?status=error");
+  if (tutorial.is_published || tutorial.status === "published") {
+    if (tutorial.price_type === "premium") {
+      const { count: buyerCount } = await (admin as any).from("tutorial_entitlements").select("id", { count: "exact", head: true }).eq("tutorial_id", tutorial.id);
+      if ((buyerCount ?? 0) > 0) redirect("/tutor?status=tutorial-has-buyers");
+    }
+    if (tutorial.publication_number && tutorial.publication_number <= 2) {
+      const { count } = await admin.from("tutorials").select("id", { count: "exact", head: true }).eq("tutor_id", userId).eq("status", "published").eq("is_published", true).eq("price_type", "free").neq("id", tutorial.id);
+      if ((count ?? 0) < 2) redirect("/tutor?status=free-replacement-required");
+    }
+    const assetId = tutorial.video_asset_id as string | null;
+    const { error } = await (admin as any).from("tutorials").update({ status: "archived", is_published: false, video_processing_status: "pending", playback_id: null, signed_playback_id: null, video_asset_id: null, video_upload_id: null, video_replacement_pending: false }).eq("id", tutorial.id).eq("tutor_id", userId);
+    if (error) redirect("/tutor?status=error");
+    if (assetId) {
+      try { await deleteMuxAsset(assetId); }
+      catch { redirect("/tutor?status=mux-delete-failed"); }
+    }
+    redirect("/tutor?status=tutorial-deleted");
+  }
+  try {
+    if (tutorial.video_asset_id) await deleteMuxAsset(tutorial.video_asset_id);
+    else if (tutorial.video_upload_id) await cancelMuxDirectUpload(tutorial.video_upload_id);
+  } catch {
+    redirect("/tutor?status=mux-delete-failed");
+  }
+  const { error } = await admin.from("tutorials").delete().eq("id", tutorial.id).eq("tutor_id", userId);
+  redirect(error ? "/tutor?status=error" : "/tutor?status=tutorial-deleted");
 }
 
 export async function scheduleLiveClass(formData: FormData) {

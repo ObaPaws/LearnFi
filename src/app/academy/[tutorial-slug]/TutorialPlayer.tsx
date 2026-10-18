@@ -1,18 +1,10 @@
 "use client";
 
 import Script from "next/script";
-import type { DetailedHTMLProps, HTMLAttributes, RefObject } from "react";
+import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
-declare module "react" {
-  namespace JSX {
-    interface IntrinsicElements {
-      "mux-player": DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & { "playback-id": string; "metadata-video-id": string; "metadata-video-title": string; "metadata-viewer-user-id": string; "stream-type"?: string; controls?: boolean; ref?: RefObject<HTMLElement | null> };
-    }
-  }
-}
-
-export function TutorialPlayer({ playbackId, tutorialId, title, viewerId }: { playbackId: string; tutorialId: string; title: string; viewerId: string }) {
+export function TutorialPlayer({ playbackId, playbackTokens, tutorialId, title, viewerId }: { playbackId: string; playbackTokens?: { playback: string; thumbnail: string; storyboard: string }; tutorialId: string; title: string; viewerId: string }) {
   const playerRef = useRef<HTMLElement | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -42,5 +34,5 @@ export function TutorialPlayer({ playbackId, tutorialId, title, viewerId }: { pl
     };
   }, [loaded, tutorialId]);
 
-  return <div className="academy-player"><Script src="https://cdn.jsdelivr.net/npm/@mux/mux-player@3" strategy="afterInteractive" onReady={() => setLoaded(true)}/><mux-player ref={playerRef as RefObject<HTMLElement | null>} playback-id={playbackId} metadata-video-id={tutorialId} metadata-video-title={title} metadata-viewer-user-id={viewerId} stream-type="on-demand" controls/><div className="academy-watch-progress"><span>Your verified watch progress</span><b>{progress}%</b></div></div>;
+  return <div className="academy-player"><Script src="https://cdn.jsdelivr.net/npm/@mux/mux-player@3" strategy="afterInteractive" onReady={() => setLoaded(true)}/><mux-player ref={playerRef as RefObject<HTMLElement | null>} playback-id={playbackId} playback-token={playbackTokens?.playback} thumbnail-token={playbackTokens?.thumbnail} storyboard-token={playbackTokens?.storyboard} metadata-video-id={tutorialId} metadata-video-title={title} metadata-viewer-user-id={viewerId} stream-type="on-demand" controls/><div className="academy-watch-progress"><span>Your verified watch progress</span><b>{progress}%</b></div></div>;
 }
