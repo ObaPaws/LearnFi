@@ -4,33 +4,41 @@ import Script from "next/script";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
-export function TutorialPlayer({ playbackId, playbackTokens, tutorialId, title, viewerId }: { playbackId: string; playbackTokens?: { playback: string; thumbnail: string; storyboard: string }; tutorialId: string; title: string; viewerId: string }) {
+export function TutorialPlayer({ playbackId, playbackTokens, tutorialId, title, viewerId, initialProgress = 0 }: { playbackId: string; playbackTokens?: { playback: string; thumbnail: string; storyboard: string }; tutorialId: string; title: string; viewerId: string; initialProgress?: number }) {
   const playerRef = useRef<HTMLElement | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(initialProgress);
   const sentAt = useRef(0);
+  const saveQueue = useRef(Promise.resolve());
 
   useEffect(() => {
     const player = playerRef.current;
     if (!player || !loaded) return;
-    const saveProgress = () => {
+    const saveProgress = (force = false) => {
       const media = player as HTMLElement & { currentTime?: number; duration?: number };
       if (!media.duration || !Number.isFinite(media.currentTime)) return;
       const position = Math.floor(media.currentTime ?? 0);
-      if (Date.now() - sentAt.current < 7000) return;
+      if (!force && Date.now() - sentAt.current < 5000) return;
       sentAt.current = Date.now();
-      void fetch("/api/learning/progress", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tutorialId, position }) })
-        .then(async (response) => {
-          if (!response.ok) return;
-          const result = (await response.json()) as { percent?: number };
-          setProgress(result.percent ?? 0);
-        });
+      saveQueue.current = saveQueue.current.then(async () => {
+        const response = await fetch("/api/learning/progress", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tutorialId, position }) });
+        if (!response.ok) return;
+        const result = (await response.json()) as { percent?: number };
+        setProgress(result.percent ?? 0);
+      }).catch(() => undefined);
     };
-    player.addEventListener("timeupdate", saveProgress);
-    player.addEventListener("pause", saveProgress);
+    const saveBaseline = () => saveProgress(true);
+    const saveCheckpoint = () => saveProgress();
+    const saveFinalProgress = () => saveProgress(true);
+    player.addEventListener("playing", saveBaseline);
+    player.addEventListener("timeupdate", saveCheckpoint);
+    player.addEventListener("pause", saveCheckpoint);
+    player.addEventListener("ended", saveFinalProgress);
     return () => {
-      player.removeEventListener("timeupdate", saveProgress);
-      player.removeEventListener("pause", saveProgress);
+      player.removeEventListener("playing", saveBaseline);
+      player.removeEventListener("timeupdate", saveCheckpoint);
+      player.removeEventListener("pause", saveCheckpoint);
+      player.removeEventListener("ended", saveFinalProgress);
     };
   }, [loaded, tutorialId]);
 
