@@ -46,6 +46,12 @@ export async function submitTutorialQuiz(formData: FormData) {
   const { data: quiz } = await admin.from("quizzes").select("id,title,passing_score,tutorial_id").eq("id", parsed.data.quizId).eq("tutorial_id", parsed.data.tutorialId).maybeSingle();
   const { data: questions } = await admin.from("tutorial_quiz_questions").select("id,tutorial_quiz_options(id)").eq("quiz_id", parsed.data.quizId).order("position");
   if (!quiz || !questions?.length) redirect(`/academy/${parsed.data.slug}?status=quiz-unavailable`);
+  const { data: previousAttempt, error: previousAttemptError } = await admin.from("quiz_attempts").select("completed_at").eq("learner_id", learnerId).eq("quiz_id", quiz.id).order("completed_at", { ascending: false }).limit(1).maybeSingle();
+  if (previousAttemptError) redirect(`/academy/${parsed.data.slug}?status=error`);
+  if (previousAttempt) {
+    const retryAt = new Date(previousAttempt.completed_at).getTime() + 60 * 60 * 1000;
+    if (Date.now() < retryAt) redirect(`/academy/${parsed.data.slug}?status=quiz-cooldown`);
+  }
   const questionIds = new Set(questions.map((question: any) => question.id));
   const submitted = [...formData.entries()].filter(([key]) => key.startsWith("answer_"));
   const selected = submitted.map(([key, value]) => ({ questionId: key.slice(7), optionId: String(value) }));
