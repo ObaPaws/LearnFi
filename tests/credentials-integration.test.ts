@@ -8,11 +8,11 @@ import { isCredentialActive } from "../src/lib/credentials/status.ts";
 import { isTutorIdentityComplete } from "../src/lib/tutor-identity.ts";
 import { verifyWalletChallenge, walletChallengeMessage } from "../src/lib/credentials/wallet-challenge.ts";
 
-test("learner eligibility is derived from completion, passed quiz, and watch threshold", () => {
-  assert.equal(isLearnerCredentialEligible({ completed: true, quizPassed: true, watchedPercent: 90 }), true);
-  assert.equal(isLearnerCredentialEligible({ completed: false, quizPassed: true, watchedPercent: 100 }), false);
-  assert.equal(isLearnerCredentialEligible({ completed: true, quizPassed: false, watchedPercent: 100 }), false);
-  assert.equal(isLearnerCredentialEligible({ completed: true, quizPassed: true, watchedPercent: 89.99 }), false);
+test("learner eligibility requires four distinct tutorials with passed assessments", () => {
+  assert.equal(isLearnerCredentialEligible(4), true);
+  assert.equal(isLearnerCredentialEligible(3), false);
+  assert.equal(isLearnerCredentialEligible(0), false);
+  assert.equal(isLearnerCredentialEligible(4.5), false);
 });
 
 test("tutor eligibility requires every configured threshold", () => {

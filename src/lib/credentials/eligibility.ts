@@ -4,13 +4,17 @@ const tutorThreshold = Number(process.env.TUTOR_CREDENTIAL_MIN_RATING || "4.2");
 
 export async function checkCredentialEligibility(admin: any, userId: string, type: "learner" | "tutor") {
   if (type === "learner") {
-    const { data: tutorial } = await admin.from("tutorials").select("id,title").eq("slug", ACHIEVEMENTS.learner.slug).eq("status", "published").maybeSingle();
-    if (!tutorial) return { eligible: false, reason: "The designated DeFi Fundamentals tutorial is not published." };
-    const { data: progress } = await admin.from("tutorial_progress").select("completed_at,video_percent_watched,assessment_passed").eq("learner_id", userId).eq("tutorial_id", tutorial.id).maybeSingle();
-    if (!isLearnerCredentialEligible({ completed: Boolean(progress?.completed_at), quizPassed: Boolean(progress?.assessment_passed), watchedPercent: Number(progress?.video_percent_watched ?? 0) })) {
-      return { eligible: false, reason: "Complete at least 90% of DeFi Fundamentals and pass its quiz first." };
-    }
-    return { eligible: true, reason: "DeFi Fundamentals completed and quiz passed." };
+    const { data: progress, error } = await admin.from("tutorial_progress")
+      .select("tutorial_id,completed_at,assessment_passed,tutorials!inner(status)")
+      .eq("learner_id", userId)
+      .not("completed_at", "is", null)
+      .eq("assessment_passed", true)
+      .eq("tutorials.status", "published");
+    if (error) return { eligible: false, reason: "Could not verify completed learning." };
+    const completedTutorialIds = new Set((progress ?? []).map((item: any) => item.tutorial_id));
+    return isLearnerCredentialEligible(completedTutorialIds.size)
+      ? { eligible: true, reason: "Learning achievement requirements are met." }
+      : { eligible: false, reason: "Learning achievement requirements are not met." };
   }
 
   const [{ data: entitlements }, { data: reputation }] = await Promise.all([
@@ -30,8 +34,8 @@ export async function checkCredentialEligibility(admin: any, userId: string, typ
 }
 
 export function tutorCredentialRatingThreshold() { return tutorThreshold; }
-export function isLearnerCredentialEligible(input: { completed: boolean; quizPassed: boolean; watchedPercent: number }) {
-  return input.completed && input.quizPassed && input.watchedPercent >= 90;
+export function isLearnerCredentialEligible(passedTutorialCount: number) {
+  return Number.isInteger(passedTutorialCount) && passedTutorialCount >= 4;
 }
 export function isTutorCredentialEligible(input: { freePublished: number; eligibleReviews: number; adjustedRating: number; ratingThreshold: number }) {
   return input.freePublished >= 2 && input.eligibleReviews >= 5 && input.adjustedRating >= input.ratingThreshold;
