@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Credential type is invalid." }, { status: 400 });
   if (!context.account.wallet_address || !context.account.wallet_verified_at) return Response.json({ error: "Verify a wallet before requesting a credential." }, { status: 409 });
-  const eligibility = await checkCredentialEligibility(context.admin as any, context.account.id, parsed.data.type);
+  const eligibility = await checkCredentialEligibility(context.admin as any, context.account.id, parsed.data.type, context.authUserId);
   if (!eligibility.eligible) return Response.json({ error: eligibility.reason }, { status: 403 });
   try {
     const issuer = issuerKeypair();

@@ -10,5 +10,5 @@ export async function authenticatedAccount() {
   const admin = createSupabaseAdminClient();
   const { data: account } = await profileForAuthUser(admin, user.id, "id,wallet_address,wallet_verified_at");
   if (!account) return null;
-  return { admin, account };
+  return { admin, account, authUserId: user.id };
 }

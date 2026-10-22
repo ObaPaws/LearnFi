@@ -53,6 +53,16 @@ export function WalletCredentials({ linkedWallet, walletVerifiedAt }: { linkedWa
     finally { setBusy(false); }
   }
 
+  async function changeWallet() {
+    setMessage("");
+    try {
+      await wallet.disconnect();
+      setMessage("Wallet disconnected. Connect and sign with the new wallet to update your linked address.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not disconnect the current wallet.");
+    }
+  }
+
   async function issue(type: "learner" | "tutor") {
     if (!linked || !wallet.signTransaction) { setMessage("Connect and verify the linked wallet before issuing a credential."); return; }
     setSubmitting(type); setMessage("");
@@ -77,7 +87,7 @@ export function WalletCredentials({ linkedWallet, walletVerifiedAt }: { linkedWa
 
   return <section className="learner-history-panel wallet-credentials-panel"><div className="workspace-heading"><div><span className="step-label">SOLANA DEVNET</span><h2>Badges</h2></div></div>
     <p>{linked ? `Verified wallet: ${linkedWallet}` : linkedWallet ? `Saved wallet address: ${linkedWallet}. Complete a fresh signed verification to use it for tutor access and onchain actions.` : "Connect a wallet to link it to your LearnFi profile."}</p>
-    <div className="wallet-credential-connect">{!wallet.connected ? <WalletMultiButton className="button button-quiet">Connect Phantom or Solflare</WalletMultiButton> : !linked ? <button className="button button-primary wallet-verify-button" onClick={verifyAndLink} disabled={busy}>{busy ? "Verifying…" : <>Verify wallet <span>{connectedAddress}</span> and link</>}</button> : <button className="button button-quiet" onClick={() => void Promise.all([loadCredentials(), loadEligibility()])}>Refresh badges</button>}</div>
+    <div className="wallet-credential-connect">{!wallet.connected ? <WalletMultiButton className="button button-quiet">Connect Phantom or Solflare</WalletMultiButton> : !linked ? <button className="button button-primary wallet-verify-button" onClick={verifyAndLink} disabled={busy}>{busy ? "Verifying…" : <>{linkedWallet ? "Verify and change to" : "Verify wallet"} <span>{connectedAddress}</span></>}</button> : <div className="wallet-credential-actions"><button className="button button-quiet" onClick={() => void changeWallet()} disabled={wallet.disconnecting}>Change wallet</button><button className="button button-quiet" onClick={() => void Promise.all([loadCredentials(), loadEligibility()])}>Refresh badges</button></div>}</div>
     <div className="credential-badge-grid">
       {([ ["learner", "Learner", learnerBadge, eligibility.learner], ["tutor", "Tutor", tutorBadge, eligibility.tutor] ] as const).map(([type, title, badge, eligible]) => <article className={`credential-badge-card ${badge ? "earned" : ""}`} key={type}>
         <div className={`credential-badge-mark ${type}`}><BadgeCheck size={27} aria-hidden="true"/></div>

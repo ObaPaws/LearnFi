@@ -6,7 +6,7 @@ This document is the canonical description of badge eligibility. The profile UI 
 
 A learner is eligible after completing and passing at least four distinct tutorials. Tutorials may be taught by any tutors; paid and free tutorials count. A tutorial counts when LearnFi records its completion and a passed assessment. Completion currently requires at least 90% tracked video watch progress and a passed tutorial assessment. Rewatching or making multiple quiz attempts does not make the same tutorial count more than once.
 
-For development, accounts in `TUTOR_DEV_BYPASS_USER_IDS` may request a learner badge without satisfying the tutorial-count rule. This account-scoped override does not bypass wallet ownership verification, recipient signing, or on-chain issuance checks.
+For development, accounts listed in `TUTOR_DEV_BYPASS_USER_IDS` or recorded in the server-only `tutor_dev_access` table may request a learner badge without satisfying the tutorial-count rule. The allowlist is keyed by Supabase Auth user ID. This account-scoped override does not bypass wallet ownership verification, recipient signing, or on-chain issuance checks.
 
 ## Tutor badge
 

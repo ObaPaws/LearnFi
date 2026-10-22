@@ -2,11 +2,16 @@ import { isTutorDevBypassEnabled } from "@/lib/tutor-identity";
 
 const tutorThreshold = Number(process.env.TUTOR_CREDENTIAL_MIN_RATING || "4.2");
 
-export async function checkCredentialEligibility(admin: any, userId: string, type: "learner" | "tutor") {
+export async function checkCredentialEligibility(admin: any, userId: string, type: "learner" | "tutor", authUserId = userId) {
   if (type === "learner") {
-    // The existing per-user development allowlist also enables learner badge
-    // issuance testing for that account; the normal chain and wallet checks remain.
-    if (isTutorDevBypassEnabled(userId)) return { eligible: true, reason: "Development learner badge access is enabled." };
+    // The scoped dev entitlement is keyed by Supabase Auth ID, not LearnFi
+    // profile ID. The wallet and on-chain checks remain mandatory.
+    if (isTutorDevBypassEnabled(authUserId)) return { eligible: true, reason: "Development learner badge access is enabled." };
+    const { data: devAccess } = await admin.from("tutor_dev_access")
+      .select("auth_user_id")
+      .eq("auth_user_id", authUserId)
+      .maybeSingle();
+    if (devAccess) return { eligible: true, reason: "Development learner badge access is enabled." };
     const { data: progress, error } = await admin.from("tutorial_progress")
       .select("tutorial_id,completed_at,assessment_passed,tutorials!inner(status)")
       .eq("learner_id", userId)

@@ -6,8 +6,8 @@ export async function GET() {
   if (!context) return Response.json({ error: "Sign in first." }, { status: 401 });
 
   const [learner, tutor] = await Promise.all([
-    checkCredentialEligibility(context.admin as any, context.account.id, "learner"),
-    checkCredentialEligibility(context.admin as any, context.account.id, "tutor"),
+    checkCredentialEligibility(context.admin as any, context.account.id, "learner", context.authUserId),
+    checkCredentialEligibility(context.admin as any, context.account.id, "tutor", context.authUserId),
   ]);
 
   return Response.json({ learner: learner.eligible, tutor: tutor.eligible }, {
