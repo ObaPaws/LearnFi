@@ -1,9 +1,12 @@
-import { ACHIEVEMENTS } from "./achievements.ts";
+import { isTutorDevBypassEnabled } from "@/lib/tutor-identity";
 
 const tutorThreshold = Number(process.env.TUTOR_CREDENTIAL_MIN_RATING || "4.2");
 
 export async function checkCredentialEligibility(admin: any, userId: string, type: "learner" | "tutor") {
   if (type === "learner") {
+    // The existing per-user development allowlist also enables learner badge
+    // issuance testing for that account; the normal chain and wallet checks remain.
+    if (isTutorDevBypassEnabled(userId)) return { eligible: true, reason: "Development learner badge access is enabled." };
     const { data: progress, error } = await admin.from("tutorial_progress")
       .select("tutorial_id,completed_at,assessment_passed,tutorials!inner(status)")
       .eq("learner_id", userId)

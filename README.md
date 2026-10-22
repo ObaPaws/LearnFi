@@ -64,7 +64,7 @@ Wallets must be on Devnet. Users connect Phantom or Solflare and sign a short-li
 
 ### Eligibility and issuance
 
-The server rechecks achievement records before preparing and again before submitting an issuance transaction. The learner credential requires completion of the published `defi-fundamentals` tutorial, a passing quiz, and at least 90% watch completion. The tutor credential requires two published free tutorial entitlements, five eligible reviews, and the configured `TUTOR_CREDENTIAL_MIN_RATING` (default 4.2 adjusted educational rating). If the designated tutorial slug changes, update the server eligibility constant with the curriculum change.
+The server rechecks achievement records before preparing and again before submitting an issuance transaction. Learner badge policy and the account-scoped development override are documented in [docs/credential-policy.md](docs/credential-policy.md). The tutor credential requires two published free tutorial entitlements, five eligible reviews, and the configured `TUTOR_CREDENTIAL_MIN_RATING` (default 4.2 adjusted educational rating).
 
 On the profile page, connect and verify the eligible user's wallet, then request the relevant credential. The recipient signs in the wallet. The backend checks that signature and the prepared instruction, adds the issuer signature as fee payer, submits to Devnet, verifies the resulting account, and only then updates the database index. `/credentials/[address]` reads the real account and checks its program owner, discriminator, account layout, PDA, bump, configured issuer, recipient, achievement, metadata hash, and revocation state. The database only supplies a lookup index; it is not proof of ownership.
 
