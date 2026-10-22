@@ -56,6 +56,7 @@ export function WalletCredentials({ linkedWallet, walletVerifiedAt }: { linkedWa
   async function changeWallet() {
     setMessage("");
     try {
+      wallet.select(null);
       await wallet.disconnect();
       setMessage("Wallet disconnected. Connect and sign with the new wallet to update your linked address.");
     } catch (error) {
